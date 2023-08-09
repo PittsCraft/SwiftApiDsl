@@ -115,7 +115,7 @@ public extension ApiClient {
 
     @discardableResult
     func perform<RequestBody: Encodable>(
-        urlRequest: URLRequest,
+        _ urlRequest: URLRequest,
         body: RequestBody = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
         ignoreDefaultModifiers: Bool = false,
@@ -143,7 +143,7 @@ public extension ApiClient {
 
     @discardableResult
     func perform<RequestBody: Encodable, ResponseBody: Decodable>(
-        urlRequest: URLRequest,
+        _ urlRequest: URLRequest,
         body: RequestBody = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
         jsonDecoder: JSONDecoder? = nil,
@@ -152,7 +152,7 @@ public extension ApiClient {
         extraValidators: [ResponseValidator] = [],
         responseBodyType: ResponseBody.Type? = nil
     ) async throws -> (body: ResponseBody, response: HTTPURLResponse) {
-        let (data, response) = try await perform(urlRequest: urlRequest,
+        let (data, response) = try await perform(urlRequest,
                                                  body: body,
                                                  jsonEncoder: jsonEncoder,
                                                  ignoreDefaultModifiers: ignoreDefaultModifiers,
@@ -164,7 +164,7 @@ public extension ApiClient {
 
     @discardableResult
     func perform<RequestBody: Encodable, ResponseBody: Decodable>(
-        urlRequest: URLRequest,
+        _ urlRequest: URLRequest,
         body: RequestBody = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
         jsonDecoder: JSONDecoder? = nil,
@@ -173,7 +173,7 @@ public extension ApiClient {
         extraValidators: [ResponseValidator] = [],
         responseBodyType: ResponseBody.Type? = nil
     ) async throws -> ResponseBody {
-        try await perform(urlRequest: urlRequest,
+        try await perform(urlRequest,
                           body: body,
                           jsonEncoder: jsonEncoder,
                           jsonDecoder: jsonDecoder,
@@ -184,7 +184,7 @@ public extension ApiClient {
     }
 
     @discardableResult
-    func download<RequestBody: Encodable>(urlRequest: URLRequest,
+    func download<RequestBody: Encodable>(_ urlRequest: URLRequest,
                                           body: RequestBody = nil as String?,
                                           jsonEncoder: JSONEncoder? = nil,
                                           destination: URL,
@@ -238,7 +238,7 @@ public extension ApiClient {
         ignoreDefaultValidators: Bool = false,
         extraValidators: [ResponseValidator] = []
     ) async throws -> (data: Data, response: HTTPURLResponse) {
-        try await perform(urlRequest: request.toUrlRequest(baseUrl: baseUrl),
+        try await perform(request.toUrlRequest(baseUrl: baseUrl),
                           body: body,
                           jsonEncoder: jsonEncoder,
                           ignoreDefaultModifiers: ignoreDefaultModifiers,
@@ -257,7 +257,7 @@ public extension ApiClient {
         extraValidators: [ResponseValidator] = [],
         responseBodyType: ResponseBody.Type? = nil
     ) async throws -> (body: ResponseBody, response: HTTPURLResponse) {
-        try await perform(urlRequest: request.toUrlRequest(baseUrl: baseUrl),
+        try await perform(request.toUrlRequest(baseUrl: baseUrl),
                           body: body,
                           jsonEncoder: jsonEncoder,
                           jsonDecoder: jsonDecoder,
@@ -277,7 +277,7 @@ public extension ApiClient {
         extraValidators: [ResponseValidator] = [],
         responseBodyType: ResponseBody.Type? = nil
     ) async throws -> ResponseBody {
-        try await perform(urlRequest: request.toUrlRequest(baseUrl: baseUrl),
+        try await perform(request.toUrlRequest(baseUrl: baseUrl),
                           body: body,
                           ignoreDefaultModifiers: ignoreDefaultModifiers,
                           ignoreDefaultValidators: ignoreDefaultValidators,
@@ -292,7 +292,7 @@ public extension ApiClient {
                                           ignoreDefaultModifiers: Bool,
                                           ignoreDefaultValidators: Bool = false,
                                           extraValidators: [ResponseValidator] = []) async throws -> HTTPURLResponse {
-        return try await download(urlRequest: request.toUrlRequest(baseUrl: baseUrl),
+        return try await download(request.toUrlRequest(baseUrl: baseUrl),
                                   body: body,
                                   jsonEncoder: jsonEncoder,
                                   destination: destination,
