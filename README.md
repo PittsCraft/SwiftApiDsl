@@ -176,9 +176,10 @@ let urlRequest: URLRequest = request.toUrlRequest(baseUrl: baseUrl)
   
 ## Errors thrown by `ApiClient`
 
-`ApiClient` throws wrapped errors helping you identifying at which stage your request failed.
+`ApiClient` throws `RequestError`s that wrap source errors helping you identifying at which stage your request failed.
 
-The error wrapper is an enum:
+It exposes the source request as well as a qualified error:
+
 ```swift
 public enum ErrorWrapper: Error {
     /// Error thrown by a modifier
@@ -198,8 +199,6 @@ public enum ErrorWrapper: Error {
 }
 ```
 
-It also offers some context by relaying the source `URLRequest`.
-
 You can access both easily:
 
 ```swift
@@ -207,13 +206,16 @@ do {
     let profile = try await client.perform(.get("user/profile"))
 } catch {
     let requestError = error.asRequestError
-    switch requestError.error {
-        case .transportError:
-            print("transportError")
+    
+    let qualifiedError = requestError.error
+    let request = requestError.request
+    
+    switch qualifiedError {
+        case .transportError(let sourceError):
+            print("transportError: \(sourceError.localizedDescription)")
         default:
             print("other error")
     }
-    let request: URLRequest? = requestError.request
     
     // Have both the request debug description and the qualified error localized description
     print(requestError.localizedDescription)
