@@ -159,6 +159,8 @@ let client = ApiClient(urlSession: myCustomSession, baseUrl: baseUrl)
 
 By default, `URLSession.shared` is used.
 
+The session is exposed at `client.urlSession`.
+
 ## Provide custom `JSONDecoder` and `JSONEncoder`
 
 ```swift
@@ -173,7 +175,20 @@ let client = ApiClient(baseUrl: baseUrl, jsonEncoder: MyJsonEncoder(), jsonDecod
 let baseUrl = URL(string: "https://google.com")!
 let urlRequest: URLRequest = request.toUrlRequest(baseUrl: baseUrl)
 ```
-  
+
+## Perform on `URLRequest` directly
+
+The same functions `perform()` and `download()` are available that take an `urlRequest: URLRequest` as first parameter
+instead of a `Request`.
+
+```swift
+
+let urlRequest: URLRequest
+
+let profile: Profile = client.perform(urlRequest: urlRequest)
+
+```
+
 ## Errors thrown by `ApiClient`
 
 `ApiClient` throws `RequestError`s that wrap source errors helping you identifying at which stage your request failed.

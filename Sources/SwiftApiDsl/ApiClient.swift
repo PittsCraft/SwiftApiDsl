@@ -2,19 +2,19 @@ import Foundation
 
 public class ApiClient {
 
-    private let urlSession: URLSession
+    public let urlSession: URLSession
     private let baseUrl: URL
     private let modifiers: [RequestModifier]
     private let jsonEncoder: JSONEncoder
     private let jsonDecoder: JSONDecoder
     private let validators: [ResponseValidator]
 
-    init(urlSession: URLSession = .shared,
-         baseUrl: URL,
-         modifiers: [RequestModifier] = [],
-         jsonEncoder: JSONEncoder = JSONEncoder(),
-         jsonDecoder: JSONDecoder = JSONDecoder(),
-         validators: [ResponseValidator] = [HttpStatusCodeRangeValidator()]) {
+    public init(urlSession: URLSession = .shared,
+                baseUrl: URL,
+                modifiers: [RequestModifier] = [],
+                jsonEncoder: JSONEncoder = JSONEncoder(),
+                jsonDecoder: JSONDecoder = JSONDecoder(),
+                validators: [ResponseValidator] = [HttpStatusCodeRangeValidator()]) {
         self.urlSession = urlSession
         self.baseUrl = baseUrl
         self.modifiers = modifiers
@@ -26,6 +26,7 @@ public class ApiClient {
 
 private extension ApiClient {
     func modify(request: inout URLRequest,
+                extraModifiers: [RequestModifier],
                 ignoreDefaultModifiers: Bool) async throws {
         guard !ignoreDefaultModifiers else { return }
         for modifier in modifiers {
@@ -55,16 +56,21 @@ private extension ApiClient {
         }
     }
 
-    func addJsonBody<RequestBody: Encodable>(to request: Request,
-                                             body: RequestBody?,
-                                             jsonEncoder: JSONEncoder?) -> Request {
+    func jsonBodyModifiers<RequestBody: Encodable>(body: RequestBody?, jsonEncoder: JSONEncoder?) -> [RequestModifier] {
         guard let body else {
-            return request
+            return []
         }
         let jsonEncoder = jsonEncoder ?? self.jsonEncoder
         let bodyModifier = JsonBodyModifier(body: body, jsonEncoder: jsonEncoder)
         let headerModifier = HeaderModifier(value: "application/json", headerField: "Content-Type")
-        return request.with([bodyModifier, headerModifier])
+        return [bodyModifier, headerModifier]
+    }
+
+    func addJsonBody<RequestBody: Encodable>(to request: Request,
+                                             body: RequestBody?,
+                                             jsonEncoder: JSONEncoder?) -> Request {
+        let modifiers = jsonBodyModifiers(body: body, jsonEncoder: jsonEncoder)
+        return request.with(modifiers)
     }
 
     func decode<ResponseBody: Decodable>(data: Data, jsonDecoder: JSONDecoder?) throws -> ResponseBody {
@@ -102,14 +108,25 @@ private extension ApiClient {
         }
         throw RequestError(request: request, error: .unknown(nil))
     }
+}
+
+/// `URLRequest` functions
+public extension ApiClient {
 
     @discardableResult
-    func perform(request: URLRequest,
-                 ignoreDefaultModifiers: Bool,
-                 ignoreDefaultValidators: Bool,
-                 extraValidators: [ResponseValidator]) async throws -> (data: Data, response: HTTPURLResponse) {
-        var request = request
-        try await modify(request: &request, ignoreDefaultModifiers: ignoreDefaultModifiers)
+    func perform<RequestBody: Encodable>(
+        urlRequest: URLRequest,
+        body: RequestBody = nil as String?,
+        jsonEncoder: JSONEncoder? = nil,
+        ignoreDefaultModifiers: Bool = false,
+        ignoreDefaultValidators: Bool = false,
+        extraValidators: [ResponseValidator] = []
+    ) async throws -> (data: Data, response: HTTPURLResponse) {
+        var request = urlRequest
+        let jsonBodyModifiers = jsonBodyModifiers(body: body, jsonEncoder: jsonEncoder)
+        try await modify(request: &request,
+                         extraModifiers: jsonBodyModifiers,
+                         ignoreDefaultModifiers: ignoreDefaultModifiers)
 
         let (data, response) = try await urlSession.data(for: request)
         guard let response = response as? HTTPURLResponse else {
@@ -121,17 +138,64 @@ private extension ApiClient {
                      response: response,
                      ignoreDefaultValidators: ignoreDefaultValidators,
                      extraValidators: extraValidators)
-        return (data, response)
+        return (data: data, response: response)
     }
 
     @discardableResult
-    func download(request: URLRequest,
-                  destination: URL,
-                  ignoreDefaultModifiers: Bool,
-                  ignoreDefaultValidators: Bool,
-                  extraValidators: [ResponseValidator]) async throws -> HTTPURLResponse {
-        var request = request
-        try await modify(request: &request, ignoreDefaultModifiers: ignoreDefaultModifiers)
+    func perform<RequestBody: Encodable, ResponseBody: Decodable>(
+        urlRequest: URLRequest,
+        body: RequestBody = nil as String?,
+        jsonEncoder: JSONEncoder? = nil,
+        jsonDecoder: JSONDecoder? = nil,
+        ignoreDefaultModifiers: Bool = false,
+        ignoreDefaultValidators: Bool = false,
+        extraValidators: [ResponseValidator] = [],
+        responseBodyType: ResponseBody.Type? = nil
+    ) async throws -> (body: ResponseBody, response: HTTPURLResponse) {
+        let (data, response) = try await perform(urlRequest: urlRequest,
+                                                 body: body,
+                                                 jsonEncoder: jsonEncoder,
+                                                 ignoreDefaultModifiers: ignoreDefaultModifiers,
+                                                 ignoreDefaultValidators: ignoreDefaultValidators,
+                                                 extraValidators: extraValidators)
+        let body: ResponseBody = try decode(data: data, jsonDecoder: jsonDecoder)
+        return (body: body, response: response)
+    }
+
+    @discardableResult
+    func perform<RequestBody: Encodable, ResponseBody: Decodable>(
+        urlRequest: URLRequest,
+        body: RequestBody = nil as String?,
+        jsonEncoder: JSONEncoder? = nil,
+        jsonDecoder: JSONDecoder? = nil,
+        ignoreDefaultModifiers: Bool = false,
+        ignoreDefaultValidators: Bool = false,
+        extraValidators: [ResponseValidator] = [],
+        responseBodyType: ResponseBody.Type? = nil
+    ) async throws -> ResponseBody {
+        try await perform(urlRequest: urlRequest,
+                          body: body,
+                          jsonEncoder: jsonEncoder,
+                          jsonDecoder: jsonDecoder,
+                          ignoreDefaultModifiers: ignoreDefaultModifiers,
+                          ignoreDefaultValidators: ignoreDefaultValidators,
+                          extraValidators: extraValidators,
+                          responseBodyType: responseBodyType).body
+    }
+
+    @discardableResult
+    func download<RequestBody: Encodable>(urlRequest: URLRequest,
+                                          body: RequestBody = nil as String?,
+                                          jsonEncoder: JSONEncoder? = nil,
+                                          destination: URL,
+                                          ignoreDefaultModifiers: Bool,
+                                          ignoreDefaultValidators: Bool,
+                                          extraValidators: [ResponseValidator]) async throws -> HTTPURLResponse {
+        var request = urlRequest
+        let jsonBodyModifiers = jsonBodyModifiers(body: body, jsonEncoder: jsonEncoder)
+        try await modify(request: &request,
+                         extraModifiers: jsonBodyModifiers,
+                         ignoreDefaultModifiers: ignoreDefaultModifiers)
         var downloadTask: URLSessionDownloadTask?
         return try await withTaskCancellationHandler(operation: {
             try await withUnsafeThrowingContinuation { continuation in
@@ -159,10 +223,10 @@ private extension ApiClient {
         }, onCancel: { [downloadTask] in
             downloadTask?.cancel()
         })
-
     }
 }
 
+/// `Request` functions
 public extension ApiClient {
 
     @discardableResult
@@ -174,11 +238,12 @@ public extension ApiClient {
         ignoreDefaultValidators: Bool = false,
         extraValidators: [ResponseValidator] = []
     ) async throws -> (data: Data, response: HTTPURLResponse) {
-        let request = addJsonBody(to: request, body: body, jsonEncoder: jsonEncoder)
-        return try await perform(request: request.toUrlRequest(baseUrl: baseUrl),
-                                 ignoreDefaultModifiers: ignoreDefaultModifiers,
-                                 ignoreDefaultValidators: ignoreDefaultValidators,
-                                 extraValidators: extraValidators)
+        try await perform(urlRequest: request.toUrlRequest(baseUrl: baseUrl),
+                          body: body,
+                          jsonEncoder: jsonEncoder,
+                          ignoreDefaultModifiers: ignoreDefaultModifiers,
+                          ignoreDefaultValidators: ignoreDefaultValidators,
+                          extraValidators: extraValidators)
     }
 
     @discardableResult
@@ -192,13 +257,13 @@ public extension ApiClient {
         extraValidators: [ResponseValidator] = [],
         responseBodyType: ResponseBody.Type? = nil
     ) async throws -> (body: ResponseBody, response: HTTPURLResponse) {
-        let (data, response) = try await perform(request,
-                                                 body: body,
-                                                 ignoreDefaultModifiers: ignoreDefaultModifiers,
-                                                 ignoreDefaultValidators: ignoreDefaultValidators,
-                                                 extraValidators: extraValidators)
-        let body: ResponseBody = try decode(data: data, jsonDecoder: jsonDecoder)
-        return (body: body, response: response)
+        try await perform(urlRequest: request.toUrlRequest(baseUrl: baseUrl),
+                          body: body,
+                          jsonEncoder: jsonEncoder,
+                          jsonDecoder: jsonDecoder,
+                          ignoreDefaultModifiers: ignoreDefaultModifiers,
+                          ignoreDefaultValidators: ignoreDefaultValidators,
+                          extraValidators: extraValidators)
     }
 
     @discardableResult
@@ -212,12 +277,11 @@ public extension ApiClient {
         extraValidators: [ResponseValidator] = [],
         responseBodyType: ResponseBody.Type? = nil
     ) async throws -> ResponseBody {
-        let (data, _) = try await perform(request,
-                                          body: body,
-                                          ignoreDefaultModifiers: ignoreDefaultModifiers,
-                                          ignoreDefaultValidators: ignoreDefaultValidators,
-                                          extraValidators: extraValidators)
-        return try decode(data: data, jsonDecoder: jsonDecoder)
+        try await perform(urlRequest: request.toUrlRequest(baseUrl: baseUrl),
+                          body: body,
+                          ignoreDefaultModifiers: ignoreDefaultModifiers,
+                          ignoreDefaultValidators: ignoreDefaultValidators,
+                          extraValidators: extraValidators)
     }
 
     @discardableResult
@@ -228,8 +292,9 @@ public extension ApiClient {
                                           ignoreDefaultModifiers: Bool,
                                           ignoreDefaultValidators: Bool = false,
                                           extraValidators: [ResponseValidator] = []) async throws -> HTTPURLResponse {
-        let request = addJsonBody(to: request, body: body, jsonEncoder: jsonEncoder)
-        return try await download(request: request.toUrlRequest(baseUrl: baseUrl),
+        return try await download(urlRequest: request.toUrlRequest(baseUrl: baseUrl),
+                                  body: body,
+                                  jsonEncoder: jsonEncoder,
                                   destination: destination,
                                   ignoreDefaultModifiers: ignoreDefaultModifiers,
                                   ignoreDefaultValidators: ignoreDefaultValidators,
