@@ -17,7 +17,7 @@ let package = Package(
     products: [
         .library(
             name: "SwiftApiDsl",
-            targets: ["SwiftApiDsl"]),
+            targets: ["SwiftApiDsl"])
     ],
     dependencies: [] + extraDependencies,
     targets: [
@@ -28,6 +28,6 @@ let package = Package(
         .testTarget(
             name: "SwiftApiDslTests",
             dependencies: ["SwiftApiDsl"],
-            plugins: [] + extraPlugins),
+            plugins: [] + extraPlugins)
     ]
 )
