@@ -178,14 +178,14 @@ let urlRequest: URLRequest = request.toUrlRequest(baseUrl: baseUrl)
 
 ## Perform on `URLRequest` directly
 
-The same functions `perform()` and `download()` are available that take an `urlRequest: URLRequest` as first parameter
+The same functions `perform()` and `download()` are available that take an `URLRequest` as first parameter
 instead of a `Request`.
 
 ```swift
 
 let urlRequest: URLRequest
 
-let profile: Profile = client.perform(urlRequest: urlRequest)
+let profile: Profile = client.perform(urlRequest)
 
 ```
 
