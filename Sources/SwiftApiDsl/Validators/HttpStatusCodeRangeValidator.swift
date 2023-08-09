@@ -4,7 +4,7 @@ public struct HttpStatusCodeRangeValidator: ResponseValidator {
 
     public let codeRange: ClosedRange<Int>
 
-    init(codeRange: ClosedRange<Int> = 200...299) {
+    public init(codeRange: ClosedRange<Int> = 200...299) {
         self.codeRange = codeRange
     }
 
