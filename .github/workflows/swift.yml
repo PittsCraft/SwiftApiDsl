@@ -16,9 +16,9 @@ jobs:
       run: xcodebuild -version
     - uses: actions/checkout@v3
     - name: Build
-      run: xcodebuild -scheme SwiftRetrier build -destination "platform=OS X"
+      run: xcodebuild -scheme SwiftApiDsl build -destination "platform=OS X"
     - name: Run tests
-      run: xcodebuild -scheme SwiftRetrier test -destination "platform=OS X"
+      run: xcodebuild -scheme SwiftApiDsl test -destination "platform=OS X"
   lint:
     runs-on: ubuntu-latest
     steps:
