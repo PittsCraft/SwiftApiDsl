@@ -66,13 +66,6 @@ private extension ApiClient {
         return [bodyModifier, headerModifier]
     }
 
-    func addJsonBody<RequestBody: Encodable>(to request: Request,
-                                             body: RequestBody?,
-                                             jsonEncoder: JSONEncoder?) -> Request {
-        let modifiers = jsonBodyModifiers(body: body, jsonEncoder: jsonEncoder)
-        return request.with(modifiers)
-    }
-
     func decode<ResponseBody: Decodable>(data: Data, jsonDecoder: JSONDecoder?) throws -> ResponseBody {
         let jsonDecoder = jsonDecoder ?? self.jsonDecoder
         return try jsonDecoder.decode(ResponseBody.self, from: data)
