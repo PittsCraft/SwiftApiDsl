@@ -10,6 +10,10 @@ public extension Request {
         Request(self.modifiers + modifiers)
     }
 
+    func with(block: @escaping (inout URLRequest) -> Void) -> Request {
+        with(BlockModifier(block: block))
+    }
+
     func with(body: Data) -> Request {
         with(BodyModifier(body: body))
     }
