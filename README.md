@@ -90,6 +90,15 @@ class AuthModifier: RequestModifier {
 }
 ```
 
+or build them using `BlockModifier`:
+
+```swift
+let authModifier = BlockModifier {
+    let token = try await authProvider.authToken()
+    $0.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+}
+```
+
 Note that if a modifier `throws`, then the `perform()` or `download()` call executing the request will rethrow wrapping
 the error.
 
@@ -102,6 +111,10 @@ let request = Request
                 .with(queryItems: [
                     "source": "Swift API DSL"
                 ])
+                .with {
+                    // Inline modification, no need to declare a modifier type
+                    $0.allowsCellularAccess = false
+                }
                 .with(AuthModifier())
 
 let profile: Profile = client.perform(request)
@@ -115,7 +128,7 @@ this modifier to an API client to avoid adding it explicitely to the majority of
 let commonModifiers = [
     HeaderModifier(value: "MyAppID", headerField: "CustomHeader")
 ]
-let authModifiers = commonModifiers + [AuthModifier()]
+let authModifiers = commonModifiers + [authModifier]
 
 let unauthClient = ApiClient(baseUrl: baseUrl, modifiers: commonModifiers)
 let authClient = ApiClient(baseUrl: baseUrl, modifiers: authModifiers) 
