@@ -28,7 +28,12 @@ private extension ApiClient {
     func modify(request: inout URLRequest,
                 extraModifiers: [RequestModifier],
                 ignoreDefaultModifiers: Bool) async throws {
-        guard !ignoreDefaultModifiers else { return }
+        let modifiers: [RequestModifier]
+        if ignoreDefaultModifiers {
+            modifiers = extraModifiers
+        } else {
+            modifiers = self.modifiers + extraModifiers
+        }
         for modifier in modifiers {
             do {
                 try await modifier.modify(&request)
@@ -66,9 +71,34 @@ private extension ApiClient {
         return [bodyModifier, headerModifier]
     }
 
-    func decode<ResponseBody: Decodable>(data: Data, jsonDecoder: JSONDecoder?) throws -> ResponseBody {
-        let jsonDecoder = jsonDecoder ?? self.jsonDecoder
-        return try jsonDecoder.decode(ResponseBody.self, from: data)
+    func execute(request: URLRequest) async throws -> (data: Data, response: HTTPURLResponse) {
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await urlSession.data(for: request)
+        } catch {
+            throw RequestError(request: request, error: .transportError(error))
+        }
+        guard let response = response as? HTTPURLResponse else {
+            throw RequestError(request: request, error: .notHttpResponse(response))
+        }
+        return (data: data, response: response)
+    }
+
+    func decode<ResponseBody: Decodable>(request: URLRequest,
+                                         data: Data,
+                                         response: HTTPURLResponse,
+                                         jsonDecoder: JSONDecoder?) throws -> ResponseBody {
+        do {
+            let jsonDecoder = jsonDecoder ?? self.jsonDecoder
+            return try jsonDecoder.decode(ResponseBody.self, from: data)
+        } catch {
+            throw RequestError(request: request,
+                               error: .decode(data: data,
+                                              response: response,
+                                              error: error,
+                                              expectedType: ResponseBody.self))
+        }
     }
 
     // swiftlint:disable:next function_parameter_count
@@ -79,6 +109,9 @@ private extension ApiClient {
                               error: Error?,
                               ignoreDefaultValidators: Bool,
                               extraValidators: [ResponseValidator]) throws -> HTTPURLResponse {
+        if let error {
+            throw RequestError(request: request, error: .transportError(error))
+        }
         guard let response = response as? HTTPURLResponse else {
             throw RequestError(request: request, error: .notHttpResponse(response))
         }
@@ -87,10 +120,7 @@ private extension ApiClient {
                      response: response,
                      ignoreDefaultValidators: ignoreDefaultValidators,
                      extraValidators: extraValidators)
-        if let error {
-            throw RequestError(request: request, error: .transportError(error))
-        }
-        if let url, error == nil {
+        if let url {
             do {
                 try FileManager.default.moveItem(at: url, to: destination)
             } catch {
@@ -115,17 +145,15 @@ public extension ApiClient {
         ignoreDefaultValidators: Bool = false,
         extraValidators: [ResponseValidator] = []
     ) async throws -> (data: Data, response: HTTPURLResponse) {
+        // Modify
         var request = urlRequest
         let jsonBodyModifiers = jsonBodyModifiers(body: body, jsonEncoder: jsonEncoder)
         try await modify(request: &request,
                          extraModifiers: jsonBodyModifiers,
                          ignoreDefaultModifiers: ignoreDefaultModifiers)
-
-        let (data, response) = try await urlSession.data(for: request)
-        guard let response = response as? HTTPURLResponse else {
-            throw RequestError(request: request, error: .notHttpResponse(response))
-        }
-
+        // Transport
+        let (data, response) = try await execute(request: request)
+        // Validation
         try validate(request: request,
                      data: data,
                      response: response,
@@ -151,7 +179,10 @@ public extension ApiClient {
                                                  ignoreDefaultModifiers: ignoreDefaultModifiers,
                                                  ignoreDefaultValidators: ignoreDefaultValidators,
                                                  extraValidators: extraValidators)
-        let body: ResponseBody = try decode(data: data, jsonDecoder: jsonDecoder)
+        let body: ResponseBody = try decode(request: urlRequest,
+                                            data: data,
+                                            response: response,
+                                            jsonDecoder: jsonDecoder)
         return (body: body, response: response)
     }
 

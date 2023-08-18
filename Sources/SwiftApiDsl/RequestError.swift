@@ -11,6 +11,8 @@ public struct RequestError: Error {
         case validationError(data: Data, response: HTTPURLResponse, error: Error)
         /// The URLResponse of the request is not an HTTPURLResponse 🤷‍♂️
         case notHttpResponse(URLResponse?)
+        /// The response passed validation, but its body failed to decode as the expected type
+        case decode(data: Data, response: HTTPURLResponse, error: Error, expectedType: Any.Type)
         /// Terrible inconsistency, should never happen
         case unknown(Error?)
         /// The client was deallocated during a download
@@ -29,6 +31,9 @@ public struct RequestError: Error {
             case .notHttpResponse(let urlResponse):
                 return "The URLResponse \(urlResponse?.debugDescription ?? "(nil)") of the request is not an "
                 + "HTTPURLResponse 🤷‍♂️"
+            case .decode(data: _, response: let response, error: let error, expectedType: let expectedType):
+                return "The response \(response.debugDescription) passed validation, but its body failed to decode as "
+                + "the expected type \(expectedType). Error: \(error.localizedDescription)"
             case .unknown(let error):
                 return "Terrible inconsistency, should never happen: \(error?.localizedDescription ?? "")"
             case .clientDeallocated:
