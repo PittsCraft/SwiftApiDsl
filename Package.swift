@@ -13,7 +13,7 @@ if lint {
 
 let package = Package(
     name: "SwiftApiDsl",
-    platforms: [.iOS(.v13), .macOS(.v10_15)],
+    platforms: [.iOS(.v13), .macOS(.v12)],
     products: [
         .library(
             name: "SwiftApiDsl",
