@@ -1,7 +1,7 @@
 import XCTest
 @testable import SwiftApiDsl
 
-final class SwiftApiDslTests: XCTestCase {
+final class ApiClientTests: XCTestCase {
     func testExample() throws {
     }
 }
