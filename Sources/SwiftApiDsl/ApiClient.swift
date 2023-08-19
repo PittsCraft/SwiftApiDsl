@@ -133,7 +133,7 @@ extension ApiClient {
 public extension ApiClient {
 
     @discardableResult
-    func perform<RequestBody: Encodable>(
+    func fetchResponse<RequestBody: Encodable>(
         _ urlRequest: URLRequest,
         body: RequestBody = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
@@ -159,7 +159,7 @@ public extension ApiClient {
     }
 
     @discardableResult
-    func perform<RequestBody: Encodable, ResponseBody: Decodable>(
+    func fetchResponse<RequestBody: Encodable, ResponseBody: Decodable>(
         _ urlRequest: URLRequest,
         body: RequestBody = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
@@ -169,12 +169,12 @@ public extension ApiClient {
         extraValidators: [ResponseValidator] = [],
         responseBodyType: ResponseBody.Type? = nil
     ) async throws -> (body: ResponseBody, response: HTTPURLResponse) {
-        let (data, response) = try await perform(urlRequest,
-                                                 body: body,
-                                                 jsonEncoder: jsonEncoder,
-                                                 ignoreDefaultModifiers: ignoreDefaultModifiers,
-                                                 ignoreDefaultValidators: ignoreDefaultValidators,
-                                                 extraValidators: extraValidators)
+        let (data, response) = try await fetchResponse(urlRequest,
+                                                       body: body,
+                                                       jsonEncoder: jsonEncoder,
+                                                       ignoreDefaultModifiers: ignoreDefaultModifiers,
+                                                       ignoreDefaultValidators: ignoreDefaultValidators,
+                                                       extraValidators: extraValidators)
         let body: ResponseBody = try decode(request: urlRequest,
                                             data: data,
                                             response: response,
@@ -193,14 +193,14 @@ public extension ApiClient {
         extraValidators: [ResponseValidator] = [],
         responseBodyType: ResponseBody.Type? = nil
     ) async throws -> ResponseBody {
-        try await perform(urlRequest,
-                          body: body,
-                          jsonEncoder: jsonEncoder,
-                          jsonDecoder: jsonDecoder,
-                          ignoreDefaultModifiers: ignoreDefaultModifiers,
-                          ignoreDefaultValidators: ignoreDefaultValidators,
-                          extraValidators: extraValidators,
-                          responseBodyType: responseBodyType).body
+        try await fetchResponse(urlRequest,
+                                body: body,
+                                jsonEncoder: jsonEncoder,
+                                jsonDecoder: jsonDecoder,
+                                ignoreDefaultModifiers: ignoreDefaultModifiers,
+                                ignoreDefaultValidators: ignoreDefaultValidators,
+                                extraValidators: extraValidators,
+                                responseBodyType: responseBodyType).body
     }
 
     @discardableResult
@@ -250,7 +250,7 @@ public extension ApiClient {
 public extension ApiClient {
 
     @discardableResult
-    func perform<RequestBody: Encodable>(
+    func fetchResponse<RequestBody: Encodable>(
         _ request: Request,
         body: RequestBody = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
@@ -258,16 +258,16 @@ public extension ApiClient {
         ignoreDefaultValidators: Bool = false,
         extraValidators: [ResponseValidator] = []
     ) async throws -> (data: Data, response: HTTPURLResponse) {
-        try await perform(request.toUrlRequest(baseUrl: baseUrl),
-                          body: body,
-                          jsonEncoder: jsonEncoder,
-                          ignoreDefaultModifiers: ignoreDefaultModifiers,
-                          ignoreDefaultValidators: ignoreDefaultValidators,
-                          extraValidators: extraValidators)
+        try await fetchResponse(request.toUrlRequest(baseUrl: baseUrl),
+                                body: body,
+                                jsonEncoder: jsonEncoder,
+                                ignoreDefaultModifiers: ignoreDefaultModifiers,
+                                ignoreDefaultValidators: ignoreDefaultValidators,
+                                extraValidators: extraValidators)
     }
 
     @discardableResult
-    func perform<RequestBody: Encodable, ResponseBody: Decodable>(
+    func fetchResponse<RequestBody: Encodable, ResponseBody: Decodable>(
         _ request: Request,
         body: RequestBody = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
@@ -277,13 +277,13 @@ public extension ApiClient {
         extraValidators: [ResponseValidator] = [],
         responseBodyType: ResponseBody.Type? = nil
     ) async throws -> (body: ResponseBody, response: HTTPURLResponse) {
-        try await perform(request.toUrlRequest(baseUrl: baseUrl),
-                          body: body,
-                          jsonEncoder: jsonEncoder,
-                          jsonDecoder: jsonDecoder,
-                          ignoreDefaultModifiers: ignoreDefaultModifiers,
-                          ignoreDefaultValidators: ignoreDefaultValidators,
-                          extraValidators: extraValidators)
+        try await fetchResponse(request.toUrlRequest(baseUrl: baseUrl),
+                                body: body,
+                                jsonEncoder: jsonEncoder,
+                                jsonDecoder: jsonDecoder,
+                                ignoreDefaultModifiers: ignoreDefaultModifiers,
+                                ignoreDefaultValidators: ignoreDefaultValidators,
+                                extraValidators: extraValidators)
     }
 
     @discardableResult
