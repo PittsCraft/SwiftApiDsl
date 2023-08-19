@@ -28,12 +28,8 @@ extension ApiClient {
     func modify(request: inout URLRequest,
                 extraModifiers: [RequestModifier],
                 ignoreDefaultModifiers: Bool) async throws {
-        let modifiers: [RequestModifier]
-        if ignoreDefaultModifiers {
-            modifiers = extraModifiers
-        } else {
-            modifiers = self.modifiers + extraModifiers
-        }
+        var modifiers = ignoreDefaultModifiers ? [] : self.modifiers
+        modifiers += extraModifiers
         for modifier in modifiers {
             do {
                 try await modifier.modify(&request)

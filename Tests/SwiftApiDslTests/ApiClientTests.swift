@@ -100,4 +100,106 @@ final class ApiClientTests: XCTestCase {
             }
         }
     }
+
+    @MainActor
+    func test_validate_applies_default_validators_when_ignoreDefaultValidators_false() async throws {
+        let request = Request()
+        let urlRequest = try await request.toUrlRequest(baseUrl: url)
+        let validator = BlockValidator { _, _ in
+            throw TestError()
+        }
+        let client = ApiClient(baseUrl: url, validators: [validator])
+        XCTAssertThrowsError(
+            try client.validate(request: urlRequest,
+                                data: Data(),
+                                response: HTTPURLResponse(),
+                                ignoreDefaultValidators: false,
+                                extraValidators: [])
+        ) { error in
+            guard let requestError = error as? RequestError else {
+                XCTFail("Thrown error should be a RequestError")
+                return
+            }
+            if case let .validationError(data: _, response: _, error: error) = requestError.error {
+                XCTAssertEqual(error as? TestError, TestError(),
+                               "Expected error to be equal to the one thrown by the validator")
+            } else {
+                XCTFail("Expected wrapped error to be case validationError")
+            }
+        }
+    }
+
+    @MainActor
+    func test_validate_doesnt_apply_default_validators_when_ignoreDefaultValidators_false() async throws {
+        let request = Request()
+        let urlRequest = try await request.toUrlRequest(baseUrl: url)
+        let validator = BlockValidator { _, _ in
+            throw TestError()
+        }
+        let client = ApiClient(baseUrl: url, validators: [validator])
+        XCTAssertNoThrow(
+            try client.validate(request: urlRequest,
+                                data: Data(),
+                                response: HTTPURLResponse(),
+                                ignoreDefaultValidators: true,
+                                extraValidators: []),
+            "Expect validate to not throw with ignoreDefaultValidators true"
+        )
+    }
+
+    @MainActor
+    func test_validate_applies_extra_validators_when_ignoreDefaultValidators_false() async throws {
+        let request = Request()
+        let urlRequest = try await request.toUrlRequest(baseUrl: url)
+        let validator = BlockValidator { _, _ in
+            throw TestError()
+        }
+        let client = ApiClient(baseUrl: url)
+        XCTAssertThrowsError(
+            try client.validate(request: urlRequest,
+                                data: Data(),
+                                response: HTTPURLResponse(),
+                                ignoreDefaultValidators: false,
+                                extraValidators: [validator])
+        ) { error in
+            guard let requestError = error as? RequestError else {
+                XCTFail("Thrown error should be a RequestError")
+                return
+            }
+            if case let .validationError(data: _, response: _, error: error) = requestError.error {
+                XCTAssertEqual(error as? TestError, TestError(),
+                               "Expected error to be equal to the one thrown by the validator")
+            } else {
+                XCTFail("Expected wrapped error to be case validationError")
+            }
+        }
+    }
+
+    @MainActor
+    func test_validate_applies_extra_validators_when_ignoreDefaultValidators_true() async throws {
+        let request = Request()
+        let urlRequest = try await request.toUrlRequest(baseUrl: url)
+        let validator = BlockValidator { _, _ in
+            throw TestError()
+        }
+        let client = ApiClient(baseUrl: url)
+        XCTAssertThrowsError(
+            try client.validate(request: urlRequest,
+                                data: Data(),
+                                response: HTTPURLResponse(),
+                                ignoreDefaultValidators: true,
+                                extraValidators: [validator])
+        ) { error in
+            guard let requestError = error as? RequestError else {
+                XCTFail("Thrown error should be a RequestError")
+                return
+            }
+            if case let .validationError(data: _, response: _, error: error) = requestError.error {
+                XCTAssertEqual(error as? TestError, TestError(),
+                               "Expected error to be equal to the one thrown by the validator")
+            } else {
+                XCTFail("Expected wrapped error to be case validationError")
+            }
+        }
+    }
 }
