@@ -24,7 +24,7 @@ public class ApiClient {
     }
 }
 
-private extension ApiClient {
+extension ApiClient {
     func modify(request: inout URLRequest,
                 extraModifiers: [RequestModifier],
                 ignoreDefaultModifiers: Bool) async throws {
