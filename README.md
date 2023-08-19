@@ -28,10 +28,10 @@ let profile: Profile = try await client.perform(.get("user/profile")) // `Profil
 try await client.perform(.post("user/profile"), body: newProfile) // `newProfile`'s type must conform to `Encodable`
 
 // Fetch both parsed JSON body and `HTTPURLResponse`
-let (body, response): (Profile, HTTPURLResponse) = try await client.perform(.get("user/profile"))
+let (body, response): (Profile, HTTPURLResponse) = try await client.fetchResponse(.get("user/profile"))
 
 // Fetch both `Data` body and `HTTPURLResponse`
-let (dataBody, response) = try await client.perform(.get("user/profile"))
+let (dataBody, response) = try await client.fetchResponse(.get("user/profile"))
 
 // Add multipart form data
 let formData = MultipartFormDataModifier
@@ -50,7 +50,7 @@ try await client.download(get("user/bills/8"), destination: localDestinationUrl)
 You can customize your request easily with extra arguments to `.get()`, `.post()` etc... or with `with()` modifiers
  (see below).
 
-A number of options are available through `perform()` and `download()` functions:
+A number of options are available through `perform()`, `fetchResponse()` and `download()` functions:
 -  provide custom `JSONEncoder` and `JSONDecoder`, note that you can do this for all requests by passing them to the 
 `ApiClient` constructor.
 - if you provided request modifiers in the constructor, ignore them for a specific request 
@@ -191,7 +191,7 @@ let urlRequest: URLRequest = request.toUrlRequest(baseUrl: baseUrl)
 
 ## Perform on `URLRequest` directly
 
-The same functions `perform()` and `download()` are available that take an `URLRequest` as first parameter
+The same functions `perform()`, `fetchResponse()` and `download()` are available that take an `URLRequest` as first parameter
 instead of a `Request`.
 
 ```swift
@@ -218,6 +218,8 @@ public enum ErrorWrapper: Error {
     case validationError(data: Data, response: HTTPURLResponse, error: Error)
     /// The URLResponse of the request is not an HTTPURLResponse 🤷‍♂️
     case notHttpResponse(URLResponse?)
+    /// The response passed validation, but its body failed to decode as the expected type
+    case decode(data: Data, response: HTTPURLResponse, error: Error, expectedType: Any.Type)
     /// Terrible inconsistency, should never happen
     case unknown(Error?)
     /// The client was deallocated during a download
