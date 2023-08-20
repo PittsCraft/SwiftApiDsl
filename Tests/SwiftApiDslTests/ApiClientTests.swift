@@ -72,7 +72,7 @@ final class ApiClientTests: XCTestCase {
             XCTFail("Expected modify to throw")
         } catch {
             let requestError = try XCTUnwrap(error as? RequestError, "Thrown error should be a RequestError")
-            if case .requestModifierError(let wrapped) = requestError.error {
+            if case .modify(let wrapped) = requestError.wrapped {
                 _ = try XCTUnwrap(wrapped as? TestError, "Expected error to be equal to the one thrown by the modifier")
             } else {
                 XCTFail("Expected wrapped error to be case requestModifierError")
@@ -93,7 +93,7 @@ final class ApiClientTests: XCTestCase {
             XCTFail("Expected modify to throw")
         } catch {
             let requestError = try XCTUnwrap(error as? RequestError, "Thrown error should be a RequestError")
-            if case .requestModifierError(let wrapped) = requestError.error {
+            if case .modify(let wrapped) = requestError.wrapped {
                 _ = try XCTUnwrap(wrapped as? TestError, "Expected error to be equal to the one thrown by the modifier")
             } else {
                 XCTFail("Expected wrapped error to be case requestModifierError")
@@ -120,7 +120,7 @@ final class ApiClientTests: XCTestCase {
                 XCTFail("Thrown error should be a RequestError")
                 return
             }
-            if case let .validationError(data: _, response: _, error: error) = requestError.error {
+            if case let .validate(data: _, response: _, error: error) = requestError.wrapped {
                 XCTAssertEqual(error as? TestError, TestError(),
                                "Expected error to be equal to the one thrown by the validator")
             } else {
@@ -166,7 +166,7 @@ final class ApiClientTests: XCTestCase {
                 XCTFail("Thrown error should be a RequestError")
                 return
             }
-            if case let .validationError(data: _, response: _, error: error) = requestError.error {
+            if case let .validate(data: _, response: _, error: error) = requestError.wrapped {
                 XCTAssertEqual(error as? TestError, TestError(),
                                "Expected error to be equal to the one thrown by the validator")
             } else {
@@ -194,7 +194,7 @@ final class ApiClientTests: XCTestCase {
                 XCTFail("Thrown error should be a RequestError")
                 return
             }
-            if case let .validationError(data: _, response: _, error: error) = requestError.error {
+            if case let .validate(data: _, response: _, error: error) = requestError.wrapped {
                 XCTAssertEqual(error as? TestError, TestError(),
                                "Expected error to be equal to the one thrown by the validator")
             } else {

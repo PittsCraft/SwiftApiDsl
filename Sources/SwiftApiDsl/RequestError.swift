@@ -2,13 +2,13 @@ import Foundation
 
 public struct RequestError: Error {
 
-    public enum ErrorWrapper: Error {
+    public enum Wrapped: Error {
         /// Error thrown by a modifier
-        case requestModifierError(Error)
+        case modify(Error)
         /// Error thrown when performing the actual URLRequest
-        case transportError(Error)
+        case transport(Error)
         /// Error thrown by a validator
-        case validationError(data: Data, response: HTTPURLResponse, error: Error)
+        case validate(data: Data, response: HTTPURLResponse, error: Error)
         /// The URLResponse of the request is not an HTTPURLResponse 🤷‍♂️
         case notHttpResponse(URLResponse?)
         /// The response passed validation, but its body failed to decode as the expected type
@@ -22,11 +22,11 @@ public struct RequestError: Error {
 
         public var localizedDescription: String {
             switch self {
-            case .requestModifierError(let error):
+            case .modify(let error):
                 return "Error thrown by a modifier: \(error.localizedDescription)"
-            case .transportError(let error):
+            case .transport(let error):
                 return "Error thrown when performing the request: \(error.localizedDescription)"
-            case .validationError(data: _, response: let response, error: let error):
+            case .validate(data: _, response: let response, error: let error):
                 return "Validation error: \(error.localizedDescription). Response: \(response.debugDescription)"
             case .notHttpResponse(let urlResponse):
                 return "The URLResponse \(urlResponse?.debugDescription ?? "(nil)") of the request is not an "
@@ -45,21 +45,21 @@ public struct RequestError: Error {
     }
 
     public let request: URLRequest?
-    public let error: ErrorWrapper
+    public let wrapped: Wrapped
 
     public var localizedDescription: String {
-        "Error: \(error.localizedDescription) for request: \(request.debugDescription)"
+        "Error: \(wrapped.localizedDescription) for request: \(request.debugDescription)"
     }
 
-    public init(request: URLRequest?, error: ErrorWrapper) {
+    public init(request: URLRequest?, wrapped: Wrapped) {
         self.request = request
-        self.error = error
+        self.wrapped = wrapped
     }
 }
 
 public extension Error {
 
     var asRequestError: RequestError {
-        self as? RequestError ?? RequestError(request: nil, error: .unknown(self))
+        self as? RequestError ?? RequestError(request: nil, wrapped: .unknown(self))
     }
 }

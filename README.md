@@ -211,11 +211,11 @@ It exposes the source request as well as a qualified error:
 ```swift
 public enum ErrorWrapper: Error {
     /// Error thrown by a modifier
-    case requestModifierError(Error)
+    case modify(Error)
     /// Error thrown when performing the actual URLRequest
-    case transportError(Error)
+    case transport(Error)
     /// Error thrown by a validator
-    case validationError(data: Data, response: HTTPURLResponse, error: Error)
+    case validate(data: Data, response: HTTPURLResponse, error: Error)
     /// The URLResponse of the request is not an HTTPURLResponse 🤷‍♂️
     case notHttpResponse(URLResponse?)
     /// The response passed validation, but its body failed to decode as the expected type
@@ -241,8 +241,8 @@ do {
     let request = requestError.request
     
     switch qualifiedError {
-        case .transportError(let sourceError):
-            print("transportError: \(sourceError.localizedDescription)")
+        case .transport(let sourceError):
+            print("transport error: \(sourceError.localizedDescription)")
         default:
             print("other error")
     }
