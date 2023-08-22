@@ -135,7 +135,7 @@ public extension ApiClient {
     @discardableResult
     func fetchResponse<RequestBody: Encodable>(
         _ urlRequest: URLRequest,
-        body: RequestBody = nil as String?,
+        body: RequestBody? = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
         ignoreDefaultModifiers: Bool = false,
         ignoreDefaultValidators: Bool = false,
@@ -161,7 +161,7 @@ public extension ApiClient {
     @discardableResult
     func fetchResponse<RequestBody: Encodable, ResponseBody: Decodable>(
         _ urlRequest: URLRequest,
-        body: RequestBody = nil as String?,
+        body: RequestBody? = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
         jsonDecoder: JSONDecoder? = nil,
         ignoreDefaultModifiers: Bool = false,
@@ -185,7 +185,7 @@ public extension ApiClient {
     @discardableResult
     func perform<RequestBody: Encodable, ResponseBody: Decodable>(
         _ urlRequest: URLRequest,
-        body: RequestBody = nil as String?,
+        body: RequestBody? = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
         jsonDecoder: JSONDecoder? = nil,
         ignoreDefaultModifiers: Bool = false,
@@ -205,7 +205,7 @@ public extension ApiClient {
 
     @discardableResult
     func download<RequestBody: Encodable>(_ urlRequest: URLRequest,
-                                          body: RequestBody = nil as String?,
+                                          body: RequestBody? = nil as String?,
                                           jsonEncoder: JSONEncoder? = nil,
                                           destination: URL,
                                           ignoreDefaultModifiers: Bool,
@@ -252,7 +252,7 @@ public extension ApiClient {
     @discardableResult
     func fetchResponse<RequestBody: Encodable>(
         _ request: Request,
-        body: RequestBody = nil as String?,
+        body: RequestBody? = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
         ignoreDefaultModifiers: Bool = false,
         ignoreDefaultValidators: Bool = false,
@@ -269,7 +269,7 @@ public extension ApiClient {
     @discardableResult
     func fetchResponse<RequestBody: Encodable, ResponseBody: Decodable>(
         _ request: Request,
-        body: RequestBody = nil as String?,
+        body: RequestBody? = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
         jsonDecoder: JSONDecoder? = nil,
         ignoreDefaultModifiers: Bool = false,
@@ -289,7 +289,7 @@ public extension ApiClient {
     @discardableResult
     func perform<RequestBody: Encodable, ResponseBody: Decodable>(
         _ request: Request,
-        body: RequestBody = nil as String?,
+        body: RequestBody? = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
         jsonDecoder: JSONDecoder? = nil,
         ignoreDefaultModifiers: Bool = false,
@@ -306,7 +306,7 @@ public extension ApiClient {
 
     @discardableResult
     func download<RequestBody: Encodable>(_ request: Request,
-                                          body: RequestBody = nil as String?,
+                                          body: RequestBody? = nil as String?,
                                           jsonEncoder: JSONEncoder? = nil,
                                           destination: URL,
                                           ignoreDefaultModifiers: Bool,
