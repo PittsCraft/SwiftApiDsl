@@ -72,7 +72,7 @@ let client = ApiClient(baseUrl: baseUrl, modifiers: apiModifiers)
 ```
 
 In this case, the `HeaderModifier` will be applied to all requests executed by this client, except if you use 
-`ignoreDefaultModifiers` argument in your `perform()` or `download()` call.
+`ignoreDefaultModifiers` argument in your `perform()`, `fetchResponse()` or `download()` call.
 
 By default, no modifier is used by `ApiClient`.
 
@@ -99,8 +99,8 @@ let authModifier = BlockModifier {
 }
 ```
 
-Note that if a modifier `throws`, then the `perform()` or `download()` call executing the request will rethrow wrapping
-the error.
+Note that if a modifier `throws`, then the `perform()`, `fetchResponse()` or `download()` call executing the request
+ will rethrow wrapping the error.
 
 There are also multiple `with()` modifiers to help you build your requests smoothly, applying modifiers on specific 
 ones:
@@ -136,7 +136,8 @@ let authClient = ApiClient(baseUrl: baseUrl, modifiers: authModifiers)
 
 ## Provide validators
 
-Validators will be applied after a request has been executed and can `throw` during `perform()` or `download()` calls.
+Validators will be applied after a request has been executed and can `throw` during `perform()`, `fetchResponse()` or
+`download()` calls.
 The error will then be wrapped and rethrown. 
 
 ```swift
@@ -146,9 +147,11 @@ let validators = [
 let client = ApiClient(baseUrl: baseUrl, validators: validators)
 ```
 
-By default, this same status code validation is used.
+By default, this same status code validation is used by `ApiClient` instances.
 
-Validators are designed to be performed systematically except if you use `ignoreDefaultValidators`.
+The validators are executed in the order they are provided:
+- first the `ApiClient` validators in the array's order except if you use `ignoreDefaultValidators`
+- then the ones provided along with the request in the array's order
 
 Implement your own validator:
 
