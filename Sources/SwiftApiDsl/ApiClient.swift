@@ -299,6 +299,8 @@ public extension ApiClient {
     ) async throws -> ResponseBody {
         try await perform(request.toUrlRequest(baseUrl: baseUrl),
                           body: body,
+                          jsonEncoder: jsonEncoder,
+                          jsonDecoder: jsonDecoder,
                           ignoreDefaultModifiers: ignoreDefaultModifiers,
                           ignoreDefaultValidators: ignoreDefaultValidators,
                           extraValidators: extraValidators)
