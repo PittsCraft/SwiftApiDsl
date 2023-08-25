@@ -209,30 +209,31 @@ let profile: Profile = client.perform(urlRequest)
 
 `ApiClient` throws `RequestError`s that wrap source errors helping you identifying at which stage your request failed.
 
-It exposes the source request as well as a qualified error:
+It exposes a qualified error enum embedding the source `URLRequest`:
 
 ```swift
-public enum ErrorWrapper: Error {
+public enum RequestError: Error {
+
     /// Error thrown by a modifier
-    case modify(Error)
+    case modify(URLRequest, Error)
     /// Error thrown when performing the actual URLRequest
-    case transport(Error)
+    case transport(URLRequest, Error)
     /// Error thrown by a validator
-    case validate(data: Data, response: HTTPURLResponse, error: Error)
+    case validate(URLRequest, data: Data, response: HTTPURLResponse, error: Error)
     /// The URLResponse of the request is not an HTTPURLResponse 🤷‍♂️
-    case notHttpResponse(URLResponse?)
+    case notHttpResponse(URLRequest, URLResponse?)
     /// The response passed validation, but its body failed to decode as the expected type
-    case decode(data: Data, response: HTTPURLResponse, error: Error, expectedType: Any.Type)
+    case decode(URLRequest, data: Data, response: HTTPURLResponse, error: Error, expectedType: Any.Type)
     /// Terrible inconsistency, should never happen
-    case unknown(Error?)
+    case unknown(URLRequest?, Error?)
     /// The client was deallocated during a download
-    case clientDeallocated
+    case clientDeallocated(URLRequest)
     /// Couldn't move the downloaded file to its destination
-    case downloadedFileMoveFailure(Error)
+    case downloadedFileMoveFailure(URLRequest, Error)
 }
 ```
 
-You can access both easily:
+You can easily check it:
 
 ```swift
 do {
@@ -240,17 +241,19 @@ do {
 } catch {
     let requestError = error.asRequestError
     
-    let qualifiedError = requestError.error
-    let request = requestError.request
-    
-    switch qualifiedError {
+    switch requestError {
         case .transport(let sourceError):
             print("transport error: \(sourceError.localizedDescription)")
         default:
             print("other error")
     }
-    
-    // Have both the request debug description and the qualified error localized description
+
+    // Priviledged access to validation error
+    if let myError = requestError.validationError as? MyError {
+        print("MyError was thrown during validation")
+    }
+
+    // Rich description of the error, including request URL for traceability
     print(requestError.localizedDescription)
 }
 ```

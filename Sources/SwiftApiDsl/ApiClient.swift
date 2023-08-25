@@ -34,7 +34,7 @@ extension ApiClient {
             do {
                 try await modifier.modify(&request)
             } catch {
-                throw RequestError(request: request, wrapped: .modify(error))
+                throw RequestError.modify(request, error)
             }
         }
     }
@@ -50,9 +50,10 @@ extension ApiClient {
             do {
                 try validator.validate(data: data, response: response)
             } catch {
-                throw RequestError(request: request, wrapped: .validate(data: data,
-                                                                        response: response,
-                                                                        error: error))
+                throw RequestError.validate(request,
+                                            data: data,
+                                            response: response,
+                                            error: error)
             }
         }
     }
@@ -73,10 +74,10 @@ extension ApiClient {
         do {
             (data, response) = try await urlSession.data(for: request)
         } catch {
-            throw RequestError(request: request, wrapped: .transport(error))
+            throw RequestError.transport(request, error)
         }
         guard let response = response as? HTTPURLResponse else {
-            throw RequestError(request: request, wrapped: .notHttpResponse(response))
+            throw RequestError.notHttpResponse(request, response)
         }
         return (data: data, response: response)
     }
@@ -89,11 +90,11 @@ extension ApiClient {
             let jsonDecoder = jsonDecoder ?? self.jsonDecoder
             return try jsonDecoder.decode(ResponseBody.self, from: data)
         } catch {
-            throw RequestError(request: request,
-                               wrapped: .decode(data: data,
-                                                response: response,
-                                                error: error,
-                                                expectedType: ResponseBody.self))
+            throw RequestError.decode(request,
+                                      data: data,
+                                      response: response,
+                                      error: error,
+                                      expectedType: ResponseBody.self)
         }
     }
 
@@ -106,10 +107,10 @@ extension ApiClient {
                               ignoreDefaultValidators: Bool,
                               extraValidators: [ResponseValidator]) throws -> HTTPURLResponse {
         if let error {
-            throw RequestError(request: request, wrapped: .transport(error))
+            throw RequestError.transport(request, error)
         }
         guard let response = response as? HTTPURLResponse else {
-            throw RequestError(request: request, wrapped: .notHttpResponse(response))
+            throw RequestError.notHttpResponse(request, response)
         }
         try validate(request: request,
                      data: Data(),
@@ -120,12 +121,11 @@ extension ApiClient {
             do {
                 try FileManager.default.moveItem(at: url, to: destination)
             } catch {
-                throw RequestError(request: request,
-                                   wrapped: .downloadedFileMoveFailure(error))
+                throw RequestError.downloadedFileMoveFailure(request, error)
             }
             return response
         }
-        throw RequestError(request: request, wrapped: .unknown(nil))
+        throw RequestError.unknown(request, nil)
     }
 }
 
@@ -222,7 +222,7 @@ public extension ApiClient {
                 downloadTask = urlSession.downloadTask(with: request,
                                                        completionHandler: { [weak self, request] url, response, error in
                     guard let self else {
-                        continuation.resume(throwing: RequestError(request: request, wrapped: .clientDeallocated))
+                        continuation.resume(throwing: RequestError.clientDeallocated(request))
                         return
                     }
                     do {
