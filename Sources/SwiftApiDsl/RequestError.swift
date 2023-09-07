@@ -8,16 +8,9 @@ public enum RequestError: Error {
     case transport(URLRequest, Error)
     /// Error thrown by a validator
     case validate(URLRequest, data: Data, response: HTTPURLResponse, error: Error)
-    /// The URLResponse of the request is not an HTTPURLResponse 🤷‍♂️
-    case notHttpResponse(URLRequest, URLResponse?)
-    /// The response passed validation, but its body failed to decode as the expected type
-    case decode(URLRequest, data: Data, response: HTTPURLResponse, error: Error, expectedType: Any.Type)
-    /// Terrible inconsistency, should never happen
-    case unknown(URLRequest?, Error?)
-    /// The client was deallocated during a download
-    case clientDeallocated(URLRequest)
-    /// Couldn't move the downloaded file to its destination
-    case downloadedFileMoveFailure(URLRequest, Error)
+    /// Exotic error that should be considered as fatal, can be a JSON decoding one for example,
+    /// switch on nested error if you need to discriminate.
+    case fatal(FatalError)
 
     private var caseDescription: String {
         switch self {
@@ -27,18 +20,8 @@ public enum RequestError: Error {
             return "Error thrown when performing the request: \(error.localizedDescription)"
         case .validate(_, data: _, response: let response, error: let error):
             return "Validation error: \(error.localizedDescription). Response: \(response.debugDescription)"
-        case .notHttpResponse(_, let urlResponse):
-            return "The URLResponse \(urlResponse?.debugDescription ?? "(nil)") of the request is not an "
-            + "HTTPURLResponse 🤷‍♂️"
-        case .decode(_, data: _, response: let response, error: let error, expectedType: let expectedType):
-            return "The response \(response.debugDescription) passed validation, but its body failed to decode as "
-            + "the expected type \(expectedType). Error: \(error.localizedDescription)"
-        case .unknown(_, let error):
-            return "Terrible inconsistency, should never happen: \(error?.localizedDescription ?? "")"
-        case .clientDeallocated:
-            return "The client was deallocated during a download"
-        case .downloadedFileMoveFailure(_, let error):
-            return "Couldn't move the downloaded file to its destination: \(error.localizedDescription)"
+        case .fatal(let fatalError):
+            return fatalError.localizedDescription
         }
     }
 
@@ -58,14 +41,47 @@ public enum RequestError: Error {
         switch self {
         case .modify(let request, _),
                 .transport(let request, _),
-                .validate(let request, data: _, response: _, error: _),
-                .notHttpResponse(let request, _),
-                .decode(let request, data: _, response: _, error: _, expectedType: _),
-                .clientDeallocated(let request),
-                .downloadedFileMoveFailure(let request, _):
+                .validate(let request, data: _, response: _, error: _):
             return request
-        case .unknown(let request, _):
-            return request
+        case .fatal(let fatalError):
+            return fatalError.request
+        }
+    }
+
+    public enum FatalError: Error {
+        /// The URLResponse of the request is not an HTTPURLResponse 🤷‍♂️
+        case notHttpResponse(URLRequest, URLResponse?)
+        /// The response passed validation, but its body failed to decode as the expected type
+        case decode(URLRequest, data: Data, response: HTTPURLResponse, error: Error, expectedType: Any.Type)
+        /// Terrible inconsistency, should never happen
+        case unknown(URLRequest?, Error?)
+        /// Couldn't move the downloaded file to its destination
+        case downloadedFileMoveFailure(URLRequest, Error)
+
+        public var localizedDescription: String {
+            switch self {
+            case .notHttpResponse(_, let urlResponse):
+                return "The URLResponse \(urlResponse?.debugDescription ?? "(nil)") of the request is not an "
+                + "HTTPURLResponse 🤷‍♂️"
+            case .decode(_, data: _, response: let response, error: let error, expectedType: let expectedType):
+                return "The response \(response.debugDescription) passed validation, but its body failed to decode as "
+                + "the expected type \(expectedType). Error: \(error.localizedDescription)"
+            case .unknown(_, let error):
+                return "Terrible inconsistency, should never happen: \(error?.localizedDescription ?? "")"
+            case .downloadedFileMoveFailure(_, let error):
+                return "Couldn't move the downloaded file to its destination: \(error.localizedDescription)"
+            }
+        }
+
+        public var request: URLRequest? {
+            switch self {
+            case .notHttpResponse(let request, _),
+                    .decode(let request, data: _, response: _, error: _, expectedType: _),
+                    .downloadedFileMoveFailure(let request, _):
+                return request
+            case .unknown(let request, _):
+                return request
+            }
         }
     }
 }
@@ -73,6 +89,6 @@ public enum RequestError: Error {
 public extension Error {
 
     var asRequestError: RequestError {
-        self as? RequestError ?? .unknown(nil, self)
+        self as? RequestError ?? .fatal(.unknown(nil, self))
     }
 }

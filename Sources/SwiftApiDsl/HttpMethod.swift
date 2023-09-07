@@ -4,15 +4,17 @@ import Foundation
 public struct HttpMethod {
     public let rawValue: String
 
-    public init(rawValue: String) {
+    public init(_ rawValue: String) {
         self.rawValue = rawValue
     }
 }
 
 public extension HttpMethod {
-    static let get = HttpMethod(rawValue: "GET")
-    static let post = HttpMethod(rawValue: "POST")
-    static let put = HttpMethod(rawValue: "PUT")
-    static let patch = HttpMethod(rawValue: "PATCH")
-    static let delete = HttpMethod(rawValue: "DELETE")
+    static let get = HttpMethod("GET")
+    static let post = HttpMethod("POST")
+    static let put = HttpMethod("PUT")
+    static let patch = HttpMethod("PATCH")
+    static let delete = HttpMethod("DELETE")
+    static let head = HttpMethod("HEAD")
+    static let options = HttpMethod("OPTIONS")
 }

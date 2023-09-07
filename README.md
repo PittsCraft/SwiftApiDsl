@@ -220,16 +220,9 @@ public enum RequestError: Error {
     case transport(URLRequest, Error)
     /// Error thrown by a validator
     case validate(URLRequest, data: Data, response: HTTPURLResponse, error: Error)
-    /// The URLResponse of the request is not an HTTPURLResponse 🤷‍♂️
-    case notHttpResponse(URLRequest, URLResponse?)
-    /// The response passed validation, but its body failed to decode as the expected type
-    case decode(URLRequest, data: Data, response: HTTPURLResponse, error: Error, expectedType: Any.Type)
-    /// Terrible inconsistency, should never happen
-    case unknown(URLRequest?, Error?)
-    /// The client was deallocated during a download
-    case clientDeallocated(URLRequest)
-    /// Couldn't move the downloaded file to its destination
-    case downloadedFileMoveFailure(URLRequest, Error)
+    /// Exotic error that should be considered as fatal, can be a JSON decoding one for example,
+    /// switch on nested error if you need to discriminate.
+    case fatal(FatalError)
 }
 ```
 
@@ -242,7 +235,7 @@ do {
     let requestError = error.asRequestError
     
     switch requestError {
-        case .transport(let sourceError):
+        case .transport(_, let sourceError):
             print("transport error: \(sourceError.localizedDescription)")
         default:
             print("other error")
