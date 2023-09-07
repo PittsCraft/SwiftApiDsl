@@ -77,7 +77,7 @@ extension ApiClient {
             throw RequestError.transport(request, error)
         }
         guard let response = response as? HTTPURLResponse else {
-            throw RequestError.notHttpResponse(request, response)
+            throw RequestError.fatal(.notHttpResponse(request, response))
         }
         return (data: data, response: response)
     }
@@ -90,11 +90,11 @@ extension ApiClient {
             let jsonDecoder = jsonDecoder ?? self.jsonDecoder
             return try jsonDecoder.decode(ResponseBody.self, from: data)
         } catch {
-            throw RequestError.decode(request,
-                                      data: data,
-                                      response: response,
-                                      error: error,
-                                      expectedType: ResponseBody.self)
+            throw RequestError.fatal(.decode(request,
+                                             data: data,
+                                             response: response,
+                                             error: error,
+                                             expectedType: ResponseBody.self))
         }
     }
 
@@ -110,7 +110,7 @@ extension ApiClient {
             throw RequestError.transport(request, error)
         }
         guard let response = response as? HTTPURLResponse else {
-            throw RequestError.notHttpResponse(request, response)
+            throw RequestError.fatal(.notHttpResponse(request, response))
         }
         try validate(request: request,
                      data: Data(),
@@ -121,11 +121,11 @@ extension ApiClient {
             do {
                 try FileManager.default.moveItem(at: url, to: destination)
             } catch {
-                throw RequestError.downloadedFileMoveFailure(request, error)
+                throw RequestError.fatal(.downloadedFileMoveFailure(request, error))
             }
             return response
         }
-        throw RequestError.unknown(request, nil)
+        throw RequestError.fatal(.unknown(request, nil))
     }
 }
 
@@ -220,11 +220,7 @@ public extension ApiClient {
         return try await withTaskCancellationHandler(operation: {
             try await withUnsafeThrowingContinuation { continuation in
                 downloadTask = urlSession.downloadTask(with: request,
-                                                       completionHandler: { [weak self, request] url, response, error in
-                    guard let self else {
-                        continuation.resume(throwing: RequestError.clientDeallocated(request))
-                        return
-                    }
+                                                       completionHandler: { [self, request] url, response, error in
                     do {
                         let response = try handleDownloadResult(request: request,
                                                                 destination: destination,

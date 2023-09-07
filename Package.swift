@@ -7,7 +7,7 @@ let lint = false
 var extraDependencies: [Package.Dependency] = []
 var extraPlugins: [Target.PluginUsage] = []
 if lint {
-    extraDependencies = [.package(url: "https://github.com/realm/SwiftLint", exact: "0.52.4")]
+    extraDependencies = [.package(url: "https://github.com/realm/SwiftLint", from: "0.52.4")]
     extraPlugins = [.plugin(name: "SwiftLintPlugin", package: "SwiftLint")]
 }
 
