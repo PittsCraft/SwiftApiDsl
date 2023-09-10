@@ -25,11 +25,8 @@ public class ApiClient {
 }
 
 extension ApiClient {
-    func modify(request: inout URLRequest,
-                extraModifiers: [RequestModifier],
-                ignoreDefaultModifiers: Bool) async throws {
-        var modifiers = ignoreDefaultModifiers ? [] : self.modifiers
-        modifiers += extraModifiers
+    func modify(request: inout URLRequest, extraModifiers: [RequestModifier]) async throws {
+        let modifiers = self.modifiers + extraModifiers
         for modifier in modifiers {
             do {
                 try await modifier.modify(&request)
@@ -42,10 +39,8 @@ extension ApiClient {
     func validate(request: URLRequest,
                   data: Data,
                   response: HTTPURLResponse,
-                  ignoreDefaultValidators: Bool,
                   extraValidators: [ResponseValidator]) throws {
-        var validators = ignoreDefaultValidators ? [] : self.validators
-        validators += extraValidators
+        let validators = self.validators + extraValidators
         for validator in validators {
             do {
                 try validator.validate(data: data, response: response)
@@ -104,7 +99,6 @@ extension ApiClient {
                               url: URL?,
                               response: URLResponse?,
                               error: Error?,
-                              ignoreDefaultValidators: Bool,
                               extraValidators: [ResponseValidator]) throws -> HTTPURLResponse {
         if let error {
             throw RequestError.transport(request, error)
@@ -115,7 +109,6 @@ extension ApiClient {
         try validate(request: request,
                      data: Data(),
                      response: response,
-                     ignoreDefaultValidators: ignoreDefaultValidators,
                      extraValidators: extraValidators)
         if let url {
             do {
@@ -137,24 +130,16 @@ public extension ApiClient {
         _ urlRequest: URLRequest,
         body: RequestBody? = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
-        ignoreDefaultModifiers: Bool = false,
-        ignoreDefaultValidators: Bool = false,
         extraValidators: [ResponseValidator] = []
     ) async throws -> (data: Data, response: HTTPURLResponse) {
         // Modify
         var request = urlRequest
         let jsonBodyModifiers = jsonBodyModifiers(body: body, jsonEncoder: jsonEncoder)
-        try await modify(request: &request,
-                         extraModifiers: jsonBodyModifiers,
-                         ignoreDefaultModifiers: ignoreDefaultModifiers)
+        try await modify(request: &request, extraModifiers: jsonBodyModifiers)
         // Transport
         let (data, response) = try await execute(request: request)
         // Validation
-        try validate(request: request,
-                     data: data,
-                     response: response,
-                     ignoreDefaultValidators: ignoreDefaultValidators,
-                     extraValidators: extraValidators)
+        try validate(request: request, data: data, response: response, extraValidators: extraValidators)
         return (data: data, response: response)
     }
 
@@ -164,16 +149,12 @@ public extension ApiClient {
         body: RequestBody? = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
         jsonDecoder: JSONDecoder? = nil,
-        ignoreDefaultModifiers: Bool = false,
-        ignoreDefaultValidators: Bool = false,
         extraValidators: [ResponseValidator] = [],
         responseBodyType: ResponseBody.Type? = nil
     ) async throws -> (body: ResponseBody, response: HTTPURLResponse) {
         let (data, response) = try await fetchResponse(urlRequest,
                                                        body: body,
                                                        jsonEncoder: jsonEncoder,
-                                                       ignoreDefaultModifiers: ignoreDefaultModifiers,
-                                                       ignoreDefaultValidators: ignoreDefaultValidators,
                                                        extraValidators: extraValidators)
         let body: ResponseBody = try decode(request: urlRequest,
                                             data: data,
@@ -188,8 +169,6 @@ public extension ApiClient {
         body: RequestBody? = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
         jsonDecoder: JSONDecoder? = nil,
-        ignoreDefaultModifiers: Bool = false,
-        ignoreDefaultValidators: Bool = false,
         extraValidators: [ResponseValidator] = [],
         responseBodyType: ResponseBody.Type? = nil
     ) async throws -> ResponseBody {
@@ -197,8 +176,6 @@ public extension ApiClient {
                                 body: body,
                                 jsonEncoder: jsonEncoder,
                                 jsonDecoder: jsonDecoder,
-                                ignoreDefaultModifiers: ignoreDefaultModifiers,
-                                ignoreDefaultValidators: ignoreDefaultValidators,
                                 extraValidators: extraValidators,
                                 responseBodyType: responseBodyType).body
     }
@@ -208,14 +185,11 @@ public extension ApiClient {
                                           body: RequestBody? = nil as String?,
                                           jsonEncoder: JSONEncoder? = nil,
                                           destination: URL,
-                                          ignoreDefaultModifiers: Bool,
-                                          ignoreDefaultValidators: Bool,
                                           extraValidators: [ResponseValidator]) async throws -> HTTPURLResponse {
         var request = urlRequest
         let jsonBodyModifiers = jsonBodyModifiers(body: body, jsonEncoder: jsonEncoder)
         try await modify(request: &request,
-                         extraModifiers: jsonBodyModifiers,
-                         ignoreDefaultModifiers: ignoreDefaultModifiers)
+                         extraModifiers: jsonBodyModifiers)
         var downloadTask: URLSessionDownloadTask?
         return try await withTaskCancellationHandler(operation: {
             try await withUnsafeThrowingContinuation { continuation in
@@ -227,7 +201,6 @@ public extension ApiClient {
                                                                 url: url,
                                                                 response: response,
                                                                 error: error,
-                                                                ignoreDefaultValidators: ignoreDefaultValidators,
                                                                 extraValidators: extraValidators)
                         continuation.resume(returning: response)
                     } catch {
@@ -250,15 +223,11 @@ public extension ApiClient {
         _ request: Request,
         body: RequestBody? = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
-        ignoreDefaultModifiers: Bool = false,
-        ignoreDefaultValidators: Bool = false,
         extraValidators: [ResponseValidator] = []
     ) async throws -> (data: Data, response: HTTPURLResponse) {
         try await fetchResponse(request.toUrlRequest(baseUrl: baseUrl),
                                 body: body,
                                 jsonEncoder: jsonEncoder,
-                                ignoreDefaultModifiers: ignoreDefaultModifiers,
-                                ignoreDefaultValidators: ignoreDefaultValidators,
                                 extraValidators: extraValidators)
     }
 
@@ -268,8 +237,6 @@ public extension ApiClient {
         body: RequestBody? = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
         jsonDecoder: JSONDecoder? = nil,
-        ignoreDefaultModifiers: Bool = false,
-        ignoreDefaultValidators: Bool = false,
         extraValidators: [ResponseValidator] = [],
         responseBodyType: ResponseBody.Type? = nil
     ) async throws -> (body: ResponseBody, response: HTTPURLResponse) {
@@ -277,8 +244,6 @@ public extension ApiClient {
                                 body: body,
                                 jsonEncoder: jsonEncoder,
                                 jsonDecoder: jsonDecoder,
-                                ignoreDefaultModifiers: ignoreDefaultModifiers,
-                                ignoreDefaultValidators: ignoreDefaultValidators,
                                 extraValidators: extraValidators)
     }
 
@@ -288,8 +253,6 @@ public extension ApiClient {
         body: RequestBody? = nil as String?,
         jsonEncoder: JSONEncoder? = nil,
         jsonDecoder: JSONDecoder? = nil,
-        ignoreDefaultModifiers: Bool = false,
-        ignoreDefaultValidators: Bool = false,
         extraValidators: [ResponseValidator] = [],
         responseBodyType: ResponseBody.Type? = nil
     ) async throws -> ResponseBody {
@@ -297,8 +260,6 @@ public extension ApiClient {
                           body: body,
                           jsonEncoder: jsonEncoder,
                           jsonDecoder: jsonDecoder,
-                          ignoreDefaultModifiers: ignoreDefaultModifiers,
-                          ignoreDefaultValidators: ignoreDefaultValidators,
                           extraValidators: extraValidators)
     }
 
@@ -307,15 +268,11 @@ public extension ApiClient {
                                           body: RequestBody? = nil as String?,
                                           jsonEncoder: JSONEncoder? = nil,
                                           destination: URL,
-                                          ignoreDefaultModifiers: Bool,
-                                          ignoreDefaultValidators: Bool = false,
                                           extraValidators: [ResponseValidator] = []) async throws -> HTTPURLResponse {
         return try await download(request.toUrlRequest(baseUrl: baseUrl),
                                   body: body,
                                   jsonEncoder: jsonEncoder,
                                   destination: destination,
-                                  ignoreDefaultModifiers: ignoreDefaultModifiers,
-                                  ignoreDefaultValidators: ignoreDefaultValidators,
                                   extraValidators: extraValidators)
     }
 }
