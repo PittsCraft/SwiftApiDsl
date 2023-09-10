@@ -7,7 +7,7 @@ public enum RequestError: Error {
     /// Error thrown when performing the actual URLRequest
     case transport(URLRequest, Error)
     /// Error thrown by a validator
-    case validate(URLRequest, data: Data, response: HTTPURLResponse, error: Error)
+    case validate(URLRequest, response: Response<Data>, error: Error)
     /// Exotic error that should be considered as fatal, can be a JSON decoding one for example,
     /// switch on nested error if you need to discriminate.
     case fatal(FatalError)
@@ -18,8 +18,9 @@ public enum RequestError: Error {
             return "Error thrown by a modifier: \(error.localizedDescription)"
         case .transport(_, let error):
             return "Error thrown when performing the request: \(error.localizedDescription)"
-        case .validate(_, data: _, response: let response, error: let error):
-            return "Validation error: \(error.localizedDescription). Response: \(response.debugDescription)"
+        case .validate(_, response: let response, error: let error):
+            return "Validation error: \(error.localizedDescription). "
+            + "Response: \(response.httpResponse.debugDescription)"
         case .fatal(let fatalError):
             return fatalError.localizedDescription
         }
@@ -31,7 +32,7 @@ public enum RequestError: Error {
     }
 
     public var validationError: Error? {
-        if case .validate(_, _, _, let error) = self {
+        if case .validate(_, _, let error) = self {
             return error
         }
         return nil
@@ -41,7 +42,7 @@ public enum RequestError: Error {
         switch self {
         case .modify(let request, _),
                 .transport(let request, _),
-                .validate(let request, data: _, response: _, error: _):
+                .validate(let request, response: _, error: _):
             return request
         case .fatal(let fatalError):
             return fatalError.request
@@ -52,7 +53,7 @@ public enum RequestError: Error {
         /// The URLResponse of the request is not an HTTPURLResponse 🤷‍♂️
         case notHttpResponse(URLRequest, URLResponse?)
         /// The response passed validation, but its body failed to decode as the expected type
-        case decode(URLRequest, data: Data, response: HTTPURLResponse, error: Error, expectedType: Any.Type)
+        case decode(URLRequest, response: Response<Data>, error: Error, expectedType: Any.Type)
         /// Terrible inconsistency, should never happen
         case unknown(URLRequest?, Error?)
         /// Couldn't move the downloaded file to its destination
@@ -63,9 +64,9 @@ public enum RequestError: Error {
             case .notHttpResponse(_, let urlResponse):
                 return "The URLResponse \(urlResponse?.debugDescription ?? "(nil)") of the request is not an "
                 + "HTTPURLResponse 🤷‍♂️"
-            case .decode(_, data: _, response: let response, error: let error, expectedType: let expectedType):
-                return "The response \(response.debugDescription) passed validation, but its body failed to decode as "
-                + "the expected type \(expectedType). Error: \(error.localizedDescription)"
+            case .decode(_, response: let response, error: let error, expectedType: let expectedType):
+                return "The response \(response.httpResponse.debugDescription) passed validation, but its body failed "
+                + "to decode as the expected type \(expectedType). Error: \(error.localizedDescription)"
             case .unknown(_, let error):
                 return "Terrible inconsistency, should never happen: \(error?.localizedDescription ?? "")"
             case .downloadedFileMoveFailure(_, let error):
@@ -76,7 +77,7 @@ public enum RequestError: Error {
         public var request: URLRequest? {
             switch self {
             case .notHttpResponse(let request, _),
-                    .decode(let request, data: _, response: _, error: _, expectedType: _),
+                    .decode(let request, response: _, error: _, expectedType: _),
                     .downloadedFileMoveFailure(let request, _):
                 return request
             case .unknown(let request, _):

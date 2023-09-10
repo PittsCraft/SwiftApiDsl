@@ -1,8 +1,8 @@
 import Foundation
 
-public struct HttpStatusCodeRangeValidator: ResponseValidator {
+public extension ResponseValidator {
 
-    public struct Error: Swift.Error {
+    struct HttpStatusCodeRangeError: Swift.Error {
         public let codeRange: ClosedRange<Int>
         public let statusCode: Int
 
@@ -17,15 +17,11 @@ public struct HttpStatusCodeRangeValidator: ResponseValidator {
         }
     }
 
-    public let codeRange: ClosedRange<Int>
-
-    public init(codeRange: ClosedRange<Int> = 200...299) {
-        self.codeRange = codeRange
-    }
-
-    public func validate(data: Data, response: HTTPURLResponse) throws {
-        guard codeRange.contains(response.statusCode) else {
-            throw Error(codeRange: codeRange, statusCode: response.statusCode)
+    static func httpStatusCodeRange(_ codeRange: ClosedRange<Int>) -> ResponseValidator {
+        ResponseValidator { response in
+            guard codeRange.contains(response.httpResponse.statusCode) else {
+                throw HttpStatusCodeRangeError(codeRange: codeRange, statusCode: response.httpResponse.statusCode)
+            }
         }
     }
 }

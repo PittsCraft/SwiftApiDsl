@@ -90,10 +90,10 @@ class AuthModifier: RequestModifier {
 }
 ```
 
-or build them using `BlockModifier`:
+or build them using `RequestModifier`:
 
 ```swift
-let authModifier = BlockModifier {
+let authModifier = RequestModifier {
     let token = try await authProvider.authToken()
     $0.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 }
