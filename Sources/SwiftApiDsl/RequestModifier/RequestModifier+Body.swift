@@ -7,7 +7,7 @@ public extension RequestModifier {
     }
 }
 
-public extension RequestModifiable {
+public extension RequestModifier {
 
     func body(_ data: Data) -> Self {
         modifier(.body(data))

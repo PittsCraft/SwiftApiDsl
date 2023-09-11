@@ -21,7 +21,7 @@ public extension RequestModifier {
     }
 }
 
-public extension RequestModifiable {
+public extension RequestBuilder {
 
     func  multipartFormData(
         @MultiPartFormDataBuilder _ fields: @escaping () -> [MultiPartFormDataField]
