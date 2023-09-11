@@ -1,74 +1,74 @@
 import Foundation
 
-public class ApiClient {
+public struct ApiClient {
 
-    public let urlSession: URLSession
-    private let baseUrl: URL
-    private let modifiers: [RequestModifier]
-    private let jsonEncoder: JSONEncoder
-    private let jsonDecoder: JSONDecoder
-    private let validators: [ResponseValidator]
+    let urlSession: URLSession
+    let baseUrl: URL
+    let jsonEncoder: JSONEncoder
+    let jsonDecoder: JSONDecoder
+    let modifier: RequestModifier
+    let validator: ResponseValidator
+    let authenticationModifier: RequestModifier
 
     public init(urlSession: URLSession = .shared,
                 baseUrl: URL,
-                modifiers: [RequestModifier] = [],
                 jsonEncoder: JSONEncoder = JSONEncoder(),
-                jsonDecoder: JSONDecoder = JSONDecoder(),
-                validators: [ResponseValidator] = [HttpStatusCodeRangeValidator()]) {
+                jsonDecoder: JSONDecoder = JSONDecoder()) {
         self.urlSession = urlSession
         self.baseUrl = baseUrl
-        self.modifiers = modifiers
         self.jsonEncoder = jsonEncoder
         self.jsonDecoder = jsonDecoder
-        self.validators = validators
+        self.modifier = .empty
+        self.validator = .empty
+        self.authenticationModifier = .empty
+    }
+
+    init(urlSession: URLSession = .shared,
+         baseUrl: URL,
+         jsonEncoder: JSONEncoder = JSONEncoder(),
+         jsonDecoder: JSONDecoder = JSONDecoder(),
+         modifier: RequestModifier,
+         validator: ResponseValidator,
+         authenticationModifier: RequestModifier) {
+        self.urlSession = urlSession
+        self.baseUrl = baseUrl
+        self.jsonEncoder = jsonEncoder
+        self.jsonDecoder = jsonDecoder
+        self.modifier = modifier
+        self.validator = validator
+        self.authenticationModifier = authenticationModifier
     }
 }
 
 extension ApiClient {
-    func modify(request: inout URLRequest,
-                extraModifiers: [RequestModifier],
-                ignoreDefaultModifiers: Bool) async throws {
-        var modifiers = ignoreDefaultModifiers ? [] : self.modifiers
-        modifiers += extraModifiers
-        for modifier in modifiers {
-            do {
-                try await modifier.modify(&request)
-            } catch {
-                throw RequestError.modify(request, error)
+
+    func modify(request: inout URLRequest, requestModifier: RequestModifier, anonymous: Bool) async throws {
+        do {
+            var modifier = self.modifier
+            if !anonymous {
+                modifier = modifier.modifier(authenticationModifier)
             }
+            modifier = modifier.modifier(requestModifier)
+            try await modifier.modify(&request)
+        } catch {
+            throw RequestError.modify(request, error)
         }
     }
 
     func validate(request: URLRequest,
-                  data: Data,
-                  response: HTTPURLResponse,
-                  ignoreDefaultValidators: Bool,
-                  extraValidators: [ResponseValidator]) throws {
-        var validators = ignoreDefaultValidators ? [] : self.validators
-        validators += extraValidators
-        for validator in validators {
-            do {
-                try validator.validate(data: data, response: response)
-            } catch {
-                throw RequestError.validate(request,
-                                            data: data,
-                                            response: response,
-                                            error: error)
-            }
+                  response: Response<Data>,
+                  extraValidator: ResponseValidator) throws {
+        let validator = self.validator.validator(extraValidator)
+        do {
+            try validator.validate(response)
+        } catch {
+            throw RequestError.validate(request,
+                                        response: response,
+                                        error: error)
         }
     }
 
-    func jsonBodyModifiers<RequestBody: Encodable>(body: RequestBody?, jsonEncoder: JSONEncoder?) -> [RequestModifier] {
-        guard let body else {
-            return []
-        }
-        let jsonEncoder = jsonEncoder ?? self.jsonEncoder
-        let bodyModifier = JsonBodyModifier(body: body, jsonEncoder: jsonEncoder)
-        let headerModifier = HeaderModifier(value: "application/json", headerField: "Content-Type")
-        return [bodyModifier, headerModifier]
-    }
-
-    func execute(request: URLRequest) async throws -> (data: Data, response: HTTPURLResponse) {
+    func execute(request: URLRequest) async throws -> Response<Data> {
         let data: Data
         let response: URLResponse
         do {
@@ -79,20 +79,18 @@ extension ApiClient {
         guard let response = response as? HTTPURLResponse else {
             throw RequestError.fatal(.notHttpResponse(request, response))
         }
-        return (data: data, response: response)
+        return Response(body: data, httpResponse: response)
     }
 
     func decode<ResponseBody: Decodable>(request: URLRequest,
-                                         data: Data,
-                                         response: HTTPURLResponse,
+                                         dataResponse: Response<Data>,
                                          jsonDecoder: JSONDecoder?) throws -> ResponseBody {
         do {
             let jsonDecoder = jsonDecoder ?? self.jsonDecoder
-            return try jsonDecoder.decode(ResponseBody.self, from: data)
+            return try jsonDecoder.decode(ResponseBody.self, from: dataResponse.body)
         } catch {
             throw RequestError.fatal(.decode(request,
-                                             data: data,
-                                             response: response,
+                                             response: dataResponse,
                                              error: error,
                                              expectedType: ResponseBody.self))
         }
@@ -104,8 +102,7 @@ extension ApiClient {
                               url: URL?,
                               response: URLResponse?,
                               error: Error?,
-                              ignoreDefaultValidators: Bool,
-                              extraValidators: [ResponseValidator]) throws -> HTTPURLResponse {
+                              extraValidator: ResponseValidator) throws -> HTTPURLResponse {
         if let error {
             throw RequestError.transport(request, error)
         }
@@ -113,10 +110,8 @@ extension ApiClient {
             throw RequestError.fatal(.notHttpResponse(request, response))
         }
         try validate(request: request,
-                     data: Data(),
-                     response: response,
-                     ignoreDefaultValidators: ignoreDefaultValidators,
-                     extraValidators: extraValidators)
+                     response: Response(body: Data(), httpResponse: response),
+                     extraValidator: extraValidator)
         if let url {
             do {
                 try FileManager.default.moveItem(at: url, to: destination)
@@ -127,95 +122,30 @@ extension ApiClient {
         }
         throw RequestError.fatal(.unknown(request, nil))
     }
-}
 
-/// `URLRequest` functions
-public extension ApiClient {
-
-    @discardableResult
-    func fetchResponse<RequestBody: Encodable>(
-        _ urlRequest: URLRequest,
-        body: RequestBody? = nil as String?,
-        jsonEncoder: JSONEncoder? = nil,
-        ignoreDefaultModifiers: Bool = false,
-        ignoreDefaultValidators: Bool = false,
-        extraValidators: [ResponseValidator] = []
-    ) async throws -> (data: Data, response: HTTPURLResponse) {
+    func perform(
+        modifier: RequestModifier,
+        anonymous: Bool,
+        extraValidator: ResponseValidator
+    ) async throws -> (request: URLRequest, response: Response<Data>) {
+        var request = URLRequest(url: baseUrl)
         // Modify
-        var request = urlRequest
-        let jsonBodyModifiers = jsonBodyModifiers(body: body, jsonEncoder: jsonEncoder)
-        try await modify(request: &request,
-                         extraModifiers: jsonBodyModifiers,
-                         ignoreDefaultModifiers: ignoreDefaultModifiers)
+        try await modify(request: &request, requestModifier: modifier, anonymous: anonymous)
         // Transport
-        let (data, response) = try await execute(request: request)
-        // Validation
-        try validate(request: request,
-                     data: data,
-                     response: response,
-                     ignoreDefaultValidators: ignoreDefaultValidators,
-                     extraValidators: extraValidators)
-        return (data: data, response: response)
+        let response = try await execute(request: request)
+        // Validate
+        try validate(request: request, response: response, extraValidator: extraValidator)
+        return (request, response)
     }
 
-    @discardableResult
-    func fetchResponse<RequestBody: Encodable, ResponseBody: Decodable>(
-        _ urlRequest: URLRequest,
-        body: RequestBody? = nil as String?,
-        jsonEncoder: JSONEncoder? = nil,
-        jsonDecoder: JSONDecoder? = nil,
-        ignoreDefaultModifiers: Bool = false,
-        ignoreDefaultValidators: Bool = false,
-        extraValidators: [ResponseValidator] = [],
-        responseBodyType: ResponseBody.Type? = nil
-    ) async throws -> (body: ResponseBody, response: HTTPURLResponse) {
-        let (data, response) = try await fetchResponse(urlRequest,
-                                                       body: body,
-                                                       jsonEncoder: jsonEncoder,
-                                                       ignoreDefaultModifiers: ignoreDefaultModifiers,
-                                                       ignoreDefaultValidators: ignoreDefaultValidators,
-                                                       extraValidators: extraValidators)
-        let body: ResponseBody = try decode(request: urlRequest,
-                                            data: data,
-                                            response: response,
-                                            jsonDecoder: jsonDecoder)
-        return (body: body, response: response)
-    }
-
-    @discardableResult
-    func perform<RequestBody: Encodable, ResponseBody: Decodable>(
-        _ urlRequest: URLRequest,
-        body: RequestBody? = nil as String?,
-        jsonEncoder: JSONEncoder? = nil,
-        jsonDecoder: JSONDecoder? = nil,
-        ignoreDefaultModifiers: Bool = false,
-        ignoreDefaultValidators: Bool = false,
-        extraValidators: [ResponseValidator] = [],
-        responseBodyType: ResponseBody.Type? = nil
-    ) async throws -> ResponseBody {
-        try await fetchResponse(urlRequest,
-                                body: body,
-                                jsonEncoder: jsonEncoder,
-                                jsonDecoder: jsonDecoder,
-                                ignoreDefaultModifiers: ignoreDefaultModifiers,
-                                ignoreDefaultValidators: ignoreDefaultValidators,
-                                extraValidators: extraValidators,
-                                responseBodyType: responseBodyType).body
-    }
-
-    @discardableResult
-    func download<RequestBody: Encodable>(_ urlRequest: URLRequest,
-                                          body: RequestBody? = nil as String?,
-                                          jsonEncoder: JSONEncoder? = nil,
-                                          destination: URL,
-                                          ignoreDefaultModifiers: Bool,
-                                          ignoreDefaultValidators: Bool,
-                                          extraValidators: [ResponseValidator]) async throws -> HTTPURLResponse {
-        var request = urlRequest
-        let jsonBodyModifiers = jsonBodyModifiers(body: body, jsonEncoder: jsonEncoder)
-        try await modify(request: &request,
-                         extraModifiers: jsonBodyModifiers,
-                         ignoreDefaultModifiers: ignoreDefaultModifiers)
+    func download(
+        modifier: RequestModifier,
+        anonymous: Bool,
+        destination: URL,
+        extraValidator: ResponseValidator
+    ) async throws -> HTTPURLResponse {
+        var request = URLRequest(url: baseUrl)
+        try await modify(request: &request, requestModifier: modifier, anonymous: anonymous)
         var downloadTask: URLSessionDownloadTask?
         return try await withTaskCancellationHandler(operation: {
             try await withUnsafeThrowingContinuation { continuation in
@@ -227,8 +157,7 @@ public extension ApiClient {
                                                                 url: url,
                                                                 response: response,
                                                                 error: error,
-                                                                ignoreDefaultValidators: ignoreDefaultValidators,
-                                                                extraValidators: extraValidators)
+                                                                extraValidator: extraValidator)
                         continuation.resume(returning: response)
                     } catch {
                         continuation.resume(throwing: error)
@@ -239,83 +168,5 @@ public extension ApiClient {
         }, onCancel: { [downloadTask] in
             downloadTask?.cancel()
         })
-    }
-}
-
-/// `Request` functions
-public extension ApiClient {
-
-    @discardableResult
-    func fetchResponse<RequestBody: Encodable>(
-        _ request: Request,
-        body: RequestBody? = nil as String?,
-        jsonEncoder: JSONEncoder? = nil,
-        ignoreDefaultModifiers: Bool = false,
-        ignoreDefaultValidators: Bool = false,
-        extraValidators: [ResponseValidator] = []
-    ) async throws -> (data: Data, response: HTTPURLResponse) {
-        try await fetchResponse(request.toUrlRequest(baseUrl: baseUrl),
-                                body: body,
-                                jsonEncoder: jsonEncoder,
-                                ignoreDefaultModifiers: ignoreDefaultModifiers,
-                                ignoreDefaultValidators: ignoreDefaultValidators,
-                                extraValidators: extraValidators)
-    }
-
-    @discardableResult
-    func fetchResponse<RequestBody: Encodable, ResponseBody: Decodable>(
-        _ request: Request,
-        body: RequestBody? = nil as String?,
-        jsonEncoder: JSONEncoder? = nil,
-        jsonDecoder: JSONDecoder? = nil,
-        ignoreDefaultModifiers: Bool = false,
-        ignoreDefaultValidators: Bool = false,
-        extraValidators: [ResponseValidator] = [],
-        responseBodyType: ResponseBody.Type? = nil
-    ) async throws -> (body: ResponseBody, response: HTTPURLResponse) {
-        try await fetchResponse(request.toUrlRequest(baseUrl: baseUrl),
-                                body: body,
-                                jsonEncoder: jsonEncoder,
-                                jsonDecoder: jsonDecoder,
-                                ignoreDefaultModifiers: ignoreDefaultModifiers,
-                                ignoreDefaultValidators: ignoreDefaultValidators,
-                                extraValidators: extraValidators)
-    }
-
-    @discardableResult
-    func perform<RequestBody: Encodable, ResponseBody: Decodable>(
-        _ request: Request,
-        body: RequestBody? = nil as String?,
-        jsonEncoder: JSONEncoder? = nil,
-        jsonDecoder: JSONDecoder? = nil,
-        ignoreDefaultModifiers: Bool = false,
-        ignoreDefaultValidators: Bool = false,
-        extraValidators: [ResponseValidator] = [],
-        responseBodyType: ResponseBody.Type? = nil
-    ) async throws -> ResponseBody {
-        try await perform(request.toUrlRequest(baseUrl: baseUrl),
-                          body: body,
-                          jsonEncoder: jsonEncoder,
-                          jsonDecoder: jsonDecoder,
-                          ignoreDefaultModifiers: ignoreDefaultModifiers,
-                          ignoreDefaultValidators: ignoreDefaultValidators,
-                          extraValidators: extraValidators)
-    }
-
-    @discardableResult
-    func download<RequestBody: Encodable>(_ request: Request,
-                                          body: RequestBody? = nil as String?,
-                                          jsonEncoder: JSONEncoder? = nil,
-                                          destination: URL,
-                                          ignoreDefaultModifiers: Bool,
-                                          ignoreDefaultValidators: Bool = false,
-                                          extraValidators: [ResponseValidator] = []) async throws -> HTTPURLResponse {
-        return try await download(request.toUrlRequest(baseUrl: baseUrl),
-                                  body: body,
-                                  jsonEncoder: jsonEncoder,
-                                  destination: destination,
-                                  ignoreDefaultModifiers: ignoreDefaultModifiers,
-                                  ignoreDefaultValidators: ignoreDefaultValidators,
-                                  extraValidators: extraValidators)
     }
 }
