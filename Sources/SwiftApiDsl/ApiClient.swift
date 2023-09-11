@@ -42,11 +42,14 @@ public struct ApiClient {
 
 extension ApiClient {
 
-    func modify(request: inout URLRequest, modifier: RequestModifier) async throws {
+    func modify(request: inout URLRequest, requestModifier: RequestModifier, anonymous: Bool) async throws {
         do {
-            try await modifier
-                .modifier(modifier)
-                .modify(&request)
+            var modifier = self.modifier
+            if !anonymous {
+                modifier = modifier.modifier(authenticationModifier)
+            }
+            modifier = modifier.modifier(requestModifier)
+            try await modifier.modify(&request)
         } catch {
             throw RequestError.modify(request, error)
         }
@@ -127,11 +130,7 @@ extension ApiClient {
     ) async throws -> (request: URLRequest, response: Response<Data>) {
         var request = URLRequest(url: baseUrl)
         // Modify
-        var modifier = self.modifier.modifier(modifier)
-        if !anonymous {
-            modifier = modifier.modifier(authenticationModifier)
-        }
-        try await modify(request: &request, modifier: modifier)
+        try await modify(request: &request, requestModifier: modifier, anonymous: anonymous)
         // Transport
         let response = try await execute(request: request)
         // Validate
@@ -146,11 +145,7 @@ extension ApiClient {
         extraValidator: ResponseValidator
     ) async throws -> HTTPURLResponse {
         var request = URLRequest(url: baseUrl)
-        var modifier = self.modifier.modifier(modifier)
-        if !anonymous {
-            modifier = modifier.modifier(authenticationModifier)
-        }
-        try await modify(request: &request, modifier: modifier)
+        try await modify(request: &request, requestModifier: modifier, anonymous: anonymous)
         var downloadTask: URLSessionDownloadTask?
         return try await withTaskCancellationHandler(operation: {
             try await withUnsafeThrowingContinuation { continuation in
