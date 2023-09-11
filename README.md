@@ -44,7 +44,7 @@ let response: Response<Profile> = try await client
     .get("user/profile")
     .queryItems([
         "user": "48",
-        "flow": "signUp 
+        "flow": "signUp"
     ])
     .perform()
 
