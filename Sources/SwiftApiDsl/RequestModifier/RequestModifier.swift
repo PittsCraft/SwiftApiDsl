@@ -16,7 +16,7 @@ public struct RequestModifier: RequestModifiable {
 
     public func modifier(_ modifier: RequestModifier) -> RequestModifier {
         .init {
-            try await self.modify(&$0)
+            try await modify(&$0)
             try await modifier.modify(&$0)
         }
     }

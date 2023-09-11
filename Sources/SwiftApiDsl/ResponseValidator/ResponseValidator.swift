@@ -10,7 +10,7 @@ public struct ResponseValidator: ResponseValidatable {
 
     public func validator(_ validator: ResponseValidator) -> ResponseValidator {
         .init { response in
-            try self.validate(response)
+            try validate(response)
             try validator.validate(response)
         }
     }
