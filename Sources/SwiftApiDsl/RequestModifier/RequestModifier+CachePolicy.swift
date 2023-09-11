@@ -5,8 +5,11 @@ public extension RequestModifier {
     static func cachePolicy(_ cachePolicy: URLRequest.CachePolicy) -> RequestModifier {
         .init { $0.cachePolicy = cachePolicy }
     }
+}
 
-    func cachePolicy(_ cachePolicy: URLRequest.CachePolicy) -> RequestModifier {
-        compose(with: .cachePolicy(cachePolicy))
+public extension RequestModifiable {
+
+    func cachePolicy(_ cachePolicy: URLRequest.CachePolicy) -> Self {
+        modifier(.cachePolicy(cachePolicy))
     }
 }

@@ -1,6 +1,6 @@
 import Foundation
 
-public struct ResponseValidator {
+public struct ResponseValidator: ResponseValidatable {
 
     public let validate: (Response<Data>) throws -> Void
 
@@ -8,10 +8,10 @@ public struct ResponseValidator {
         self.validate = validate
     }
 
-    public func compose(with otherValidator: ResponseValidator) -> ResponseValidator {
+    public func validator(_ validator: ResponseValidator) -> ResponseValidator {
         .init { response in
             try self.validate(response)
-            try otherValidator.validate(response)
+            try validator.validate(response)
         }
     }
 

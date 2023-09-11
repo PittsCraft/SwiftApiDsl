@@ -1,145 +1,72 @@
 import Foundation
 
-/// `URLRequest` functions
 public extension ApiClient {
 
-
-    @discardableResult
-    func perform<RequestBody: Encodable>(
-        _ urlRequest: URLRequest,
-        anonymous: Bool = false,
-        body: RequestBody? = nil as String?,
-        jsonEncoder: JSONEncoder? = nil,
-        extraValidator: ResponseValidator = .empty
-    ) async throws -> Response<Data> {
-        let modifier = jsonBodyModifier(body: body, jsonEncoder: jsonEncoder)
-        return try await perform(modifier: modifier, anonymous: anonymous, extraValidator: extraValidator).response
+    func request<RequestBody: Encodable>(_ httpMethod: HttpMethod = .get,
+                                         _ path: String? = nil,
+                                         anonymous: Bool = false,
+                                         body: RequestBody? = nil as String?,
+                                         jsonEncoder: JSONEncoder? = nil) -> RequestBuilder {
+        var modifier = RequestModifier.httpMethod(httpMethod)
+        if let path {
+            modifier = modifier.modifier(.path(path))
+        }
+        if let body {
+            let jsonEncoder = jsonEncoder ?? self.jsonEncoder
+            modifier = modifier.modifier(.jsonBody(body: body, jsonEncoder: jsonEncoder))
+        }
+        return .init(apiClient: self,
+                     anonymous: anonymous,
+                     extraValidator: .empty,
+                     modifier: modifier)
     }
 
-    @discardableResult
-    func perform<RequestBody: Encodable, ResponseBody: Decodable>(
-        _ urlRequest: URLRequest,
-        anonymous: Bool = false,
-        body: RequestBody? = nil as String?,
-        jsonEncoder: JSONEncoder? = nil,
-        jsonDecoder: JSONDecoder? = nil,
-        extraValidator: ResponseValidator = .empty,
-        responseBodyType: ResponseBody.Type? = nil
-    ) async throws -> Response<ResponseBody> {
-        let dataResponse = try await perform(urlRequest,
-                                             anonymous: anonymous,
-                                             body: body,
-                                             jsonEncoder: jsonEncoder,
-                                             extraValidator: extraValidator)
-        let body: ResponseBody = try decode(request: urlRequest,
-                                            dataResponse: dataResponse,
-                                            jsonDecoder: jsonDecoder)
-        return Response(body: body, httpResponse: dataResponse.httpResponse)
+    func delete<RequestBody: Encodable>(_ path: String? = nil,
+                                        anonymous: Bool = false,
+                                        body: RequestBody? = nil as String?,
+                                        jsonEncoder: JSONEncoder? = nil) -> RequestBuilder {
+        request(.delete, path, anonymous: anonymous, body: body, jsonEncoder: jsonEncoder)
     }
 
-    @discardableResult
-    func perform<RequestBody: Encodable, ResponseBody: Decodable>(
-        _ urlRequest: URLRequest,
-        anonymous: Bool = false,
-        body: RequestBody? = nil as String?,
-        jsonEncoder: JSONEncoder? = nil,
-        jsonDecoder: JSONDecoder? = nil,
-        extraValidator: ResponseValidator = .empty,
-        responseBodyType: ResponseBody.Type? = nil
-    ) async throws -> ResponseBody {
-        try await perform(urlRequest,
-                          anonymous: anonymous,
-                          body: body,
-                          jsonEncoder: jsonEncoder,
-                          jsonDecoder: jsonDecoder,
-                          extraValidator: extraValidator,
-                          responseBodyType: responseBodyType).body
+    func head<RequestBody: Encodable>(_ path: String? = nil,
+                                      anonymous: Bool = false,
+                                      body: RequestBody? = nil as String?,
+                                      jsonEncoder: JSONEncoder? = nil) -> RequestBuilder {
+        request(.head, path, anonymous: anonymous, body: body, jsonEncoder: jsonEncoder)
     }
 
-    @discardableResult
-    func download<RequestBody: Encodable>(
-        _ urlRequest: URLRequest,
-        anonymous: Bool = false,
-        body: RequestBody? = nil as String?,
-        jsonEncoder: JSONEncoder? = nil,
-        destination: URL,
-        extraValidator: ResponseValidator
-    ) async throws -> HTTPURLResponse {
-        let modifier = jsonBodyModifier(body: body, jsonEncoder: jsonEncoder)
-        return try await download(modifier: modifier,
-                                  anonymous: anonymous,
-                                  destination: destination,
-                                  extraValidator: extraValidator)
-    }
-}
-
-/// `Request` functions
-public extension ApiClient {
-
-    @discardableResult
-    func perform<RequestBody: Encodable>(
-        _ request: Request = .get(),
-        anonymous: Bool = false,
-        body: RequestBody? = nil as String?,
-        jsonEncoder: JSONEncoder? = nil,
-        extraValidator: ResponseValidator = .empty
-    ) async throws -> Response<Data> {
-        let jsonModifier = jsonBodyModifier(body: body, jsonEncoder: jsonEncoder)
-        let modifier = request.compose(with: jsonModifier)
-        return try await perform(modifier: modifier, anonymous: anonymous, extraValidator: extraValidator).response
+    func get<RequestBody: Encodable>(_ path: String? = nil,
+                                     anonymous: Bool = false,
+                                     body: RequestBody? = nil as String?,
+                                     jsonEncoder: JSONEncoder? = nil) -> RequestBuilder {
+        request(.get, path, anonymous: anonymous, body: body, jsonEncoder: jsonEncoder)
     }
 
-    @discardableResult
-    func perform<RequestBody: Encodable, ResponseBody: Decodable>(
-        _ request: Request = .get(),
-        anonymous: Bool = false,
-        body: RequestBody? = nil as String?,
-        jsonEncoder: JSONEncoder? = nil,
-        jsonDecoder: JSONDecoder? = nil,
-        extraValidator: ResponseValidator = .empty,
-        responseBodyType: ResponseBody.Type? = nil
-    ) async throws -> Response<ResponseBody> {
-        let jsonModifier = jsonBodyModifier(body: body, jsonEncoder: jsonEncoder)
-        let modifier = request.compose(with: jsonModifier)
-        let (request, response) = try await perform(modifier: modifier,
-                                                    anonymous: anonymous,
-                                                    extraValidator: extraValidator)
-        let body: ResponseBody = try decode(request: request, dataResponse: response, jsonDecoder: jsonDecoder)
-        return Response(body: body, httpResponse: response.httpResponse)
+    func options<RequestBody: Encodable>(_ path: String? = nil,
+                                         anonymous: Bool = false,
+                                         body: RequestBody? = nil as String?,
+                                         jsonEncoder: JSONEncoder? = nil) -> RequestBuilder {
+        request(.options, path, anonymous: anonymous, body: body, jsonEncoder: jsonEncoder)
     }
 
-    @discardableResult
-    func perform<RequestBody: Encodable, ResponseBody: Decodable>(
-        _ request: Request = .get(),
-        anonymous: Bool = false,
-        body: RequestBody? = nil as String?,
-        jsonEncoder: JSONEncoder? = nil,
-        jsonDecoder: JSONDecoder? = nil,
-        extraValidator: ResponseValidator = .empty,
-        responseBodyType: ResponseBody.Type? = nil
-    ) async throws -> ResponseBody {
-        try await perform(request,
-                          anonymous: anonymous,
-                          body: body,
-                          jsonEncoder: jsonEncoder,
-                          jsonDecoder: jsonDecoder,
-                          extraValidator: extraValidator).body
+    func patch<RequestBody: Encodable>(_ path: String? = nil,
+                                       anonymous: Bool = false,
+                                       body: RequestBody? = nil as String?,
+                                       jsonEncoder: JSONEncoder? = nil) -> RequestBuilder {
+        request(.patch, path, anonymous: anonymous, body: body, jsonEncoder: jsonEncoder)
     }
 
-    @discardableResult
-    func download<RequestBody: Encodable>(
-        _ request: Request = .get(),
-        anonymous: Bool = false,
-        body: RequestBody? = nil as String?,
-        jsonEncoder: JSONEncoder? = nil,
-        destination: URL,
-        extraValidator: ResponseValidator = .empty
-    ) async throws -> HTTPURLResponse {
-        let jsonModifier = jsonBodyModifier(body: body, jsonEncoder: jsonEncoder)
-        let modifier = request.compose(with: jsonModifier)
-        return try await download(modifier: modifier,
-                                  anonymous: anonymous,
-                                  destination: destination,
-                                  extraValidator: extraValidator)
+    func post<RequestBody: Encodable>(_ path: String? = nil,
+                                      anonymous: Bool = false,
+                                      body: RequestBody? = nil as String?,
+                                      jsonEncoder: JSONEncoder? = nil) -> RequestBuilder {
+        request(.post, path, anonymous: anonymous, body: body, jsonEncoder: jsonEncoder)
+    }
+
+    func put<RequestBody: Encodable>(_ path: String? = nil,
+                                     anonymous: Bool = false,
+                                     body: RequestBody? = nil as String?,
+                                     jsonEncoder: JSONEncoder? = nil) -> RequestBuilder {
+        request(.put, path, anonymous: anonymous, body: body, jsonEncoder: jsonEncoder)
     }
 }

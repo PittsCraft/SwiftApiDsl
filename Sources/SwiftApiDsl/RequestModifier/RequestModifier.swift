@@ -1,7 +1,7 @@
 import Foundation
 
 /// A type that asynchronously enriches URLRequests
-public struct  RequestModifier {
+public struct RequestModifier: RequestModifiable {
 
     /// Asynchronously mutates an URLRequest
     ///
@@ -14,14 +14,12 @@ public struct  RequestModifier {
         self.modify = modify
     }
 
-    public func compose(with otherModifier: RequestModifier) -> RequestModifier {
+    public func modifier(_ modifier: RequestModifier) -> RequestModifier {
         .init {
             try await self.modify(&$0)
-            try await otherModifier.modify(&$0)
+            try await modifier.modify(&$0)
         }
     }
 
     static let empty: RequestModifier = .init { _ in }
 }
-
-public typealias Request = RequestModifier

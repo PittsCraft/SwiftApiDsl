@@ -6,10 +6,7 @@ public extension RequestModifier {
         .init {
             let data = try jsonEncoder.encode(body)
             $0.httpBody = data
+            $0.addValue("application/json", forHTTPHeaderField: "Content-Type")
         }
-    }
-
-    func jsonBody<Body: Encodable>(body: Body, jsonEncoder: JSONEncoder) -> RequestModifier {
-        compose(with: .jsonBody(body: body, jsonEncoder: jsonEncoder))
     }
 }

@@ -19,11 +19,14 @@ public extension RequestModifier {
             $0.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         }
     }
+}
+
+public extension RequestModifiable {
 
     func  multipartFormData(
         @MultiPartFormDataBuilder _ fields: @escaping () -> [MultiPartFormDataField]
-    ) -> RequestModifier {
-        compose(with: .multipartFormData(fields))
+    ) -> Self {
+        modifier(.multipartFormData(fields))
     }
 }
 

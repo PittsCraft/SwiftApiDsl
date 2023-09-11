@@ -19,8 +19,11 @@ public extension RequestModifier {
             $0.url = url
         }
     }
+}
 
-    func queryItems(_ queryItems: [String: String?]) -> RequestModifier {
-        compose(with: .queryItems(queryItems))
+public extension RequestModifiable {
+
+    func queryItems(_ queryItems: [String: String?]) -> Self {
+        modifier(.queryItems(queryItems))
     }
 }

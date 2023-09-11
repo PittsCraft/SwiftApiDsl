@@ -2,7 +2,7 @@ import Foundation
 
 public enum RequestError: Error {
 
-    /// Error thrown by a modifier
+    /// Error thrown by a modifier (including authentication one)
     case modify(URLRequest, Error)
     /// Error thrown when performing the actual URLRequest
     case transport(URLRequest, Error)

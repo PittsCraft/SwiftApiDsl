@@ -1,6 +1,6 @@
 import Foundation
 
-public class ApiClient {
+public struct ApiClient {
 
     let urlSession: URLSession
     let baseUrl: URL
@@ -41,10 +41,11 @@ public class ApiClient {
 }
 
 extension ApiClient {
+
     func modify(request: inout URLRequest, modifier: RequestModifier) async throws {
         do {
             try await modifier
-                .compose(with: modifier)
+                .modifier(modifier)
                 .modify(&request)
         } catch {
             throw RequestError.modify(request, error)
@@ -54,7 +55,7 @@ extension ApiClient {
     func validate(request: URLRequest,
                   response: Response<Data>,
                   extraValidator: ResponseValidator) throws {
-        let validator = self.validator.compose(with: extraValidator)
+        let validator = self.validator.validator(extraValidator)
         do {
             try validator.validate(response)
         } catch {
@@ -62,15 +63,6 @@ extension ApiClient {
                                         response: response,
                                         error: error)
         }
-    }
-
-    func jsonBodyModifier<RequestBody: Encodable>(body: RequestBody?, jsonEncoder: JSONEncoder?) -> RequestModifier {
-        guard let body else {
-            return .init { _ in }
-        }
-        let jsonEncoder = jsonEncoder ?? self.jsonEncoder
-        return .jsonBody(body: body, jsonEncoder: jsonEncoder)
-            .header(value: "application/json", headerField: "Content-Type")
     }
 
     func execute(request: URLRequest) async throws -> Response<Data> {
@@ -128,7 +120,6 @@ extension ApiClient {
         throw RequestError.fatal(.unknown(request, nil))
     }
 
-    @discardableResult
     func perform(
         modifier: RequestModifier,
         anonymous: Bool,
@@ -136,9 +127,9 @@ extension ApiClient {
     ) async throws -> (request: URLRequest, response: Response<Data>) {
         var request = URLRequest(url: baseUrl)
         // Modify
-        var modifier = self.modifier.compose(with: modifier)
+        var modifier = self.modifier.modifier(modifier)
         if !anonymous {
-            modifier = modifier.compose(with: authenticationModifier)
+            modifier = modifier.modifier(authenticationModifier)
         }
         try await modify(request: &request, modifier: modifier)
         // Transport
@@ -148,7 +139,6 @@ extension ApiClient {
         return (request, response)
     }
 
-    @discardableResult
     func download(
         modifier: RequestModifier,
         anonymous: Bool,
@@ -156,9 +146,9 @@ extension ApiClient {
         extraValidator: ResponseValidator
     ) async throws -> HTTPURLResponse {
         var request = URLRequest(url: baseUrl)
-        var modifier = self.modifier.compose(with: modifier)
+        var modifier = self.modifier.modifier(modifier)
         if !anonymous {
-            modifier = modifier.compose(with: authenticationModifier)
+            modifier = modifier.modifier(authenticationModifier)
         }
         try await modify(request: &request, modifier: modifier)
         var downloadTask: URLSessionDownloadTask?

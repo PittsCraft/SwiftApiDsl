@@ -5,8 +5,11 @@ public extension RequestModifier {
     static func body(_ data: Data) -> RequestModifier {
         .init { $0.httpBody = data }
     }
+}
 
-    func body(_ data: Data) -> RequestModifier {
-        compose(with: .body(data))
+public extension RequestModifiable {
+
+    func body(_ data: Data) -> Self {
+        modifier(.body(data))
     }
 }
