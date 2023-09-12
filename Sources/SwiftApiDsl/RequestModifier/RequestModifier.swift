@@ -14,6 +14,12 @@ public struct RequestModifier: RequestModifiable {
         self.modify = modify
     }
 
+    public init(buildModifier: @escaping () async throws -> RequestModifier) {
+        self.modify = {
+            try await buildModifier().modify(&$0)
+        }
+    }
+
     public func modifier(_ modifier: RequestModifier) -> RequestModifier {
         .init {
             try await modify(&$0)

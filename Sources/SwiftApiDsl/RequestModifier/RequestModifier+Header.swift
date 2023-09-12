@@ -2,12 +2,12 @@ import Foundation
 
 public extension RequestModifier {
 
-    static func header(field: String, value: String?) -> RequestModifier {
+    static func header(field: String, _ value: String?) -> RequestModifier {
         .init { $0.setValue(value, forHTTPHeaderField: field) }
     }
 
     static func header(_ field: HeaderField, _ value: String?) -> RequestModifier {
-        header(field: field.rawValue, value: value)
+        header(field: field.rawValue, value)
     }
 
     enum HeaderField: String {
@@ -64,7 +64,7 @@ public extension RequestModifier {
 public extension RequestModifiable {
 
     func header(field: String, value: String?) -> Self {
-        modifier(.header(field: field, value: value))
+        modifier(.header(field: field, value))
     }
 
     func header(_ field: RequestModifier.HeaderField, _ value: String?) -> Self {
