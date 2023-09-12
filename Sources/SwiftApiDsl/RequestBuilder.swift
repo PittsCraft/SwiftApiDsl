@@ -2,16 +2,16 @@ import Foundation
 
 public struct RequestBuilder {
     let apiClient: ApiClient
-    let anonymous: Bool
+    let bypassAuth: Bool
     let extraValidator: ResponseValidator
     let modifier: RequestModifier
 
     init(apiClient: ApiClient,
-         anonymous: Bool,
+         bypassAuth: Bool,
          extraValidator: ResponseValidator,
          modifier: RequestModifier) {
         self.apiClient = apiClient
-        self.anonymous = anonymous
+        self.bypassAuth = bypassAuth
         self.extraValidator = .empty
         self.modifier = modifier
     }
@@ -21,7 +21,7 @@ extension RequestBuilder: ResponseValidatable {
 
     public func validator(_ validator: ResponseValidator) -> RequestBuilder {
         .init(apiClient: apiClient,
-              anonymous: anonymous,
+              bypassAuth: bypassAuth,
               extraValidator: extraValidator.validator(validator),
               modifier: modifier)
     }
@@ -31,7 +31,7 @@ extension RequestBuilder: RequestModifiable {
 
     public func modifier(_ modifier: RequestModifier) -> RequestBuilder {
         .init(apiClient: apiClient,
-              anonymous: anonymous,
+              bypassAuth: bypassAuth,
               extraValidator: extraValidator,
               modifier: self.modifier.modifier(modifier))
     }
@@ -40,16 +40,16 @@ extension RequestBuilder: RequestModifiable {
 public extension RequestBuilder {
 
     func perform() async throws {
-        _ = try await apiClient.perform(modifier: modifier, anonymous: anonymous, extraValidator: extraValidator)
+        _ = try await apiClient.perform(modifier: modifier, bypassAuth: bypassAuth, extraValidator: extraValidator)
     }
 
     func perform() async throws -> Response<Data> {
-        try await apiClient.perform(modifier: modifier, anonymous: anonymous, extraValidator: extraValidator).response
+        try await apiClient.perform(modifier: modifier, bypassAuth: bypassAuth, extraValidator: extraValidator).response
     }
 
     func perform<ResponseBody: Decodable>(jsonDecoder: JSONDecoder? = nil) async throws -> Response<ResponseBody> {
         let (request, response) = try await apiClient.perform(modifier: modifier,
-                                                              anonymous: anonymous,
+                                                              bypassAuth: bypassAuth,
                                                               extraValidator: extraValidator)
         let body: ResponseBody = try apiClient.decode(request: request,
                                                       dataResponse: response,
@@ -64,7 +64,7 @@ public extension RequestBuilder {
     @discardableResult
     func download(_ destination: URL) async throws -> HTTPURLResponse {
         try await apiClient.download(modifier: modifier,
-                                     anonymous: anonymous,
+                                     bypassAuth: bypassAuth,
                                      destination: destination,
                                      extraValidator: extraValidator)
     }

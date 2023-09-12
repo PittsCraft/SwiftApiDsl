@@ -12,4 +12,12 @@ public extension RequestModifiable {
     ) -> Self {
         modifier(RequestModifier(modify: modify))
     }
+
+    func modifier(
+        _ buildModifier: @escaping () async throws -> RequestModifier
+    ) -> Self {
+        modifier {
+            try await buildModifier().modify(&$0)
+        }
+    }
 }

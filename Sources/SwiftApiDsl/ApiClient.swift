@@ -42,10 +42,10 @@ public struct ApiClient {
 
 extension ApiClient {
 
-    func modify(request: inout URLRequest, requestModifier: RequestModifier, anonymous: Bool) async throws {
+    func modify(request: inout URLRequest, requestModifier: RequestModifier, bypassAuth: Bool) async throws {
         do {
             var modifier = self.modifier
-            if !anonymous {
+            if !bypassAuth {
                 modifier = modifier.modifier(authenticationModifier)
             }
             modifier = modifier.modifier(requestModifier)
@@ -125,12 +125,12 @@ extension ApiClient {
 
     func perform(
         modifier: RequestModifier,
-        anonymous: Bool,
+        bypassAuth: Bool,
         extraValidator: ResponseValidator
     ) async throws -> (request: URLRequest, response: Response<Data>) {
         var request = URLRequest(url: baseUrl)
         // Modify
-        try await modify(request: &request, requestModifier: modifier, anonymous: anonymous)
+        try await modify(request: &request, requestModifier: modifier, bypassAuth: bypassAuth)
         // Transport
         let response = try await execute(request: request)
         // Validate
@@ -140,12 +140,12 @@ extension ApiClient {
 
     func download(
         modifier: RequestModifier,
-        anonymous: Bool,
+        bypassAuth: Bool,
         destination: URL,
         extraValidator: ResponseValidator
     ) async throws -> HTTPURLResponse {
         var request = URLRequest(url: baseUrl)
-        try await modify(request: &request, requestModifier: modifier, anonymous: anonymous)
+        try await modify(request: &request, requestModifier: modifier, bypassAuth: bypassAuth)
         var downloadTask: URLSessionDownloadTask?
         return try await withTaskCancellationHandler(operation: {
             try await withUnsafeThrowingContinuation { continuation in

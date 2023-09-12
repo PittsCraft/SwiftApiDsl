@@ -51,4 +51,10 @@ public extension ApiClient {
                   authenticationModifier: self.authenticationModifier.modifier(authenticationModifier)
         )
     }
+
+    func authentication(_ authenticationModifier: @escaping () async throws -> RequestModifier) -> ApiClient {
+        authentication {
+            try await authenticationModifier().modify(&$0)
+        }
+    }
 }
