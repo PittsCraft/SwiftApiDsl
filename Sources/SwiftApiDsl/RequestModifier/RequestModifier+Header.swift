@@ -63,7 +63,7 @@ public extension RequestModifier {
 
 public extension RequestModifiable {
 
-    func header(field: String, value: String?) -> Self {
+    func header(field: String, _ value: String?) -> Self {
         modifier(.header(field: field, value))
     }
 
