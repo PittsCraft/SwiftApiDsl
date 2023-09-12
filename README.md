@@ -6,12 +6,16 @@ The goal of this library is to provide a concise, easy to use and discoverable D
 open to any customization.
 
 This implies a small number of feature to help your structure your API client:
+- centralize base path and common configuration in a client
 - straightforward JSON encoding and decoding
 - simple and generic authentication mechanism
 - singular requests customization
 - intuitive error qualification
 
-Retry mechanisms are out of the table. Better use 
+If you know Alamofire, this lib has some similarities except it's way smaller and stays closer to `URLRequest` - you
+don't need to learn much to use it efficiently.
+
+As a side note, retry mechanisms are out of the table. Better use 
 [SwiftRetrier](https://github.com/PittsCraft/SwiftRetrier) to retry your requests easily and with full control.
 
 ## Create an API Client
@@ -21,7 +25,7 @@ All you need is a base URL
 ```swift
 let baseUrl = URL(string: "https://my-domain.com")!
 let client = ApiClient(baseUrl: baseUrl)
-    .httpStatusCodeRange() // 200..<300
+    .httpStatusCodeRange() // Validator ensuring status code is in 200..<300
 ```
 
 ## Use it
@@ -42,7 +46,8 @@ let response: Response<Data> = try await client.get("user/profile").perform()
 // Add query items
 let response: Response<Profile> = try await client
     .get("user/profile")
-    .queryItems([
+    .queryItem(name: "context", "new-user") // One by one
+    .queryItems([ // Or all at once
         "user": "48",
         "flow": "signUp"
     ])
@@ -71,7 +76,14 @@ Numerous built-in modifiers are available, you can discover them easily using yo
 You can provide a request modifier that injects authentication.
 
 ```swift
+// Using a built-in modifier asynchronously
+let client = ApiClient(baseUrl: baseUrl)
+    .authentication {
+        let token = try await getToken()
+        return .bearer(token)
+    }
 
+// Or a custom one
 let client = ApiClient(baseUrl: baseUrl)
     .authentication {
         let token = try await getToken()
@@ -81,8 +93,8 @@ let client = ApiClient(baseUrl: baseUrl)
 // Authenticated
 let profile: Profile = client.get("user/profile").perform()
 
-// Anonymous
-let news: News = client.get("news", anonymous: true).perform()
+// Unauthenticated
+let news: News = client.get("news", bypassAuth: true).perform()
 ```
 
 ## Advanced Usage
@@ -96,11 +108,11 @@ let client = ApiClient(urlSession: customSession,
                        jsonEncoder: customEncoder,
                        jsonDecoder: customDecoder)
     // Use built-in request modifiers
-    .header(value: "my-app/5.0.1", headerField: "User-Agent")
+    .userAgent("my-app/5.0.1")
     .allowsCellularAccess(false)
     .timeoutInterval(8)
     // Custom URLRequest modifier
-    .modifier {
+    .modifier { // You can try and await in all modifiers
         $0.cachePolicy = .reloadIgnoringLocalCacheData
     }
     // Custom validator
@@ -115,7 +127,7 @@ and your requests
 
 ```swift
 let news: News = client
-    .get("news", anonymous: true, body: someEncodable, jsonEncoder: customEncoder)
+    .get("news", bypassAuth: true, body: someEncodable, jsonEncoder: customEncoder)
     .allowsCellularAccess(false) // Use built-in modifiers
     .modifier { // Or custom ones
         $0.cachePolicy = .reloadIgnoringLocalCacheData
