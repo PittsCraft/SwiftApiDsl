@@ -239,6 +239,61 @@ extension ResponseValidatable {
 
 ```
 
+## Mock
+
+To get a mocked client:
+
+```swift
+// Use an existing instance
+let mockedClient = client.mocked()
+```
+
+Beware: all modifiers will be applied (including authentication one).
+If they can throw unexpectedly, better create a fresh instance without undesired modifiers.
+
+```swift
+// Create a fresh mocked client
+let mockedClient = ApiClientMock(baseUrl: someUrl)
+```
+
+None of the requests performed on this client will reach the network.
+
+Validators will not be applied, leaving you free to throw any `RequestError` case.
+
+By default all responses will be mocked with empty data and an empty `200` HTTP response. 
+This means that if you don't customize responses, decoding bodies will always throw.
+
+To provide custom responses:
+
+```swift
+let profile: Profile // Decodable
+
+mockedClient.resultProvider = { urlRequest in
+    guard let url = urlRequest.url else { return nil }
+    
+    if url.path.contains("user/profile") {
+        // Provide a response with a valid encoded body
+        if urlRequest.httpMethod == "GET" { 
+            return .response(request, body: profile) // response helper, default status code 200
+        }
+        // Throw a RequestError on this one
+        if urlRequest.httpMethod == "POST" {
+            return .failure(.transport(request, SomeError()))
+        }
+        // Fully customize the response
+        if urlRequest.httpMethod == "PUT" {
+            let httpResponse = HTTPURLResponse(url: url, 
+                                               statusCode: 201,
+                                               httpVersion: nil,
+                                               headerFields: ["CustomHeader": "8"])
+            return .success(.init(body: someData, httpResponse: httpResponse!))
+        }
+    }
+    let httpResponse = HTTPURLResponse(url: $0.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+    return .success(Response(body: Data(), httpResponse: httpResponse!))
+}
+```
+
 ## Contribute
 
 Feel free to make any comment, criticism, bug report or feature request using Github issues.

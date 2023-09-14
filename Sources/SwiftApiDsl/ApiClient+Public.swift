@@ -69,4 +69,14 @@ public extension ApiClient {
                                      jsonEncoder: JSONEncoder? = nil) -> RequestBuilder {
         request(.put, path, bypassAuth: bypassAuth, body: body, jsonEncoder: jsonEncoder)
     }
+
+    func mocked() -> ApiClientMock {
+        ApiClientMock(urlSession: urlSession,
+                      baseUrl: baseUrl,
+                      jsonEncoder: jsonEncoder,
+                      jsonDecoder: jsonDecoder,
+                      modifier: modifier,
+                      validator: validator,
+                      authenticationModifier: authenticationModifier)
+    }
 }

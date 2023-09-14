@@ -1,14 +1,20 @@
 import Foundation
 
+public enum QueryItemsError: Error {
+    case noUrl
+    case parseComponents(URL)
+    case buildUrlFromComponents(URLComponents)
+}
+
 public extension RequestModifier {
 
     static func queryItems(_ queryItems: [String: String?]) -> RequestModifier {
         .init {
             guard let url = $0.url else {
-                throw BuildRequestError.noUrl
+                throw QueryItemsError.noUrl
             }
             guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-                throw BuildRequestError.parseComponents(url)
+                throw QueryItemsError.parseComponents(url)
             }
             var resultItems = components.queryItems ?? []
             resultItems += queryItems
@@ -16,7 +22,7 @@ public extension RequestModifier {
                 .map { (name, value) in URLQueryItem(name: name, value: value) }
             components.queryItems = resultItems
             guard let url = components.url else {
-                throw BuildRequestError.buildUrlFromComponents(components)
+                throw QueryItemsError.buildUrlFromComponents(components)
             }
             $0.url = url
         }

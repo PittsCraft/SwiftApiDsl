@@ -2,7 +2,7 @@
 
 import PackageDescription
 
-let lint = false
+let lint = true
 
 var extraDependencies: [Package.Dependency] = []
 var extraPlugins: [Target.PluginUsage] = []

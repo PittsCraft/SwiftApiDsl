@@ -1,6 +1,6 @@
 import Foundation
 
-public struct ApiClient {
+public class ApiClient {
 
     let urlSession: URLSession
     let baseUrl: URL
@@ -23,13 +23,13 @@ public struct ApiClient {
         self.authenticationModifier = .empty
     }
 
-    init(urlSession: URLSession = .shared,
-         baseUrl: URL,
-         jsonEncoder: JSONEncoder = JSONEncoder(),
-         jsonDecoder: JSONDecoder = JSONDecoder(),
-         modifier: RequestModifier,
-         validator: ResponseValidator,
-         authenticationModifier: RequestModifier) {
+    required init(urlSession: URLSession = .shared,
+                  baseUrl: URL,
+                  jsonEncoder: JSONEncoder = JSONEncoder(),
+                  jsonDecoder: JSONDecoder = JSONDecoder(),
+                  modifier: RequestModifier,
+                  validator: ResponseValidator,
+                  authenticationModifier: RequestModifier) {
         self.urlSession = urlSession
         self.baseUrl = baseUrl
         self.jsonEncoder = jsonEncoder
@@ -37,6 +37,53 @@ public struct ApiClient {
         self.modifier = modifier
         self.validator = validator
         self.authenticationModifier = authenticationModifier
+    }
+
+    func perform(
+        modifier: RequestModifier,
+        bypassAuth: Bool,
+        extraValidator: ResponseValidator
+    ) async throws -> (request: URLRequest, response: Response<Data>) {
+        var request = URLRequest(url: baseUrl)
+        // Modify
+        try await modify(request: &request, requestModifier: modifier, bypassAuth: bypassAuth)
+        // Transport
+        let response = try await execute(request: request)
+        // Validate
+        try validate(request: request, response: response, extraValidator: extraValidator)
+        return (request, response)
+    }
+
+    func download(
+        modifier: RequestModifier,
+        bypassAuth: Bool,
+        destination: URL,
+        extraValidator: ResponseValidator
+    ) async throws -> HTTPURLResponse {
+        var request = URLRequest(url: baseUrl)
+        try await modify(request: &request, requestModifier: modifier, bypassAuth: bypassAuth)
+        var downloadTask: URLSessionDownloadTask?
+        return try await withTaskCancellationHandler(operation: {
+            try await withUnsafeThrowingContinuation { continuation in
+                downloadTask = urlSession.downloadTask(with: request,
+                                                       completionHandler: { [self, request] url, response, error in
+                    do {
+                        let response = try handleDownloadResult(request: request,
+                                                                destination: destination,
+                                                                url: url,
+                                                                response: response,
+                                                                error: error,
+                                                                extraValidator: extraValidator)
+                        continuation.resume(returning: response)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                })
+                downloadTask?.resume()
+            }
+        }, onCancel: { [downloadTask] in
+            downloadTask?.cancel()
+        })
     }
 }
 
@@ -121,52 +168,5 @@ extension ApiClient {
             return response
         }
         throw RequestError.fatal(.unknown(request, nil))
-    }
-
-    func perform(
-        modifier: RequestModifier,
-        bypassAuth: Bool,
-        extraValidator: ResponseValidator
-    ) async throws -> (request: URLRequest, response: Response<Data>) {
-        var request = URLRequest(url: baseUrl)
-        // Modify
-        try await modify(request: &request, requestModifier: modifier, bypassAuth: bypassAuth)
-        // Transport
-        let response = try await execute(request: request)
-        // Validate
-        try validate(request: request, response: response, extraValidator: extraValidator)
-        return (request, response)
-    }
-
-    func download(
-        modifier: RequestModifier,
-        bypassAuth: Bool,
-        destination: URL,
-        extraValidator: ResponseValidator
-    ) async throws -> HTTPURLResponse {
-        var request = URLRequest(url: baseUrl)
-        try await modify(request: &request, requestModifier: modifier, bypassAuth: bypassAuth)
-        var downloadTask: URLSessionDownloadTask?
-        return try await withTaskCancellationHandler(operation: {
-            try await withUnsafeThrowingContinuation { continuation in
-                downloadTask = urlSession.downloadTask(with: request,
-                                                       completionHandler: { [self, request] url, response, error in
-                    do {
-                        let response = try handleDownloadResult(request: request,
-                                                                destination: destination,
-                                                                url: url,
-                                                                response: response,
-                                                                error: error,
-                                                                extraValidator: extraValidator)
-                        continuation.resume(returning: response)
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                })
-                downloadTask?.resume()
-            }
-        }, onCancel: { [downloadTask] in
-            downloadTask?.cancel()
-        })
     }
 }
