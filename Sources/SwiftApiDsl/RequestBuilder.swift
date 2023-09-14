@@ -39,10 +39,7 @@ extension RequestBuilder: RequestModifiable {
 
 public extension RequestBuilder {
 
-    func perform() async throws {
-        _ = try await apiClient.perform(modifier: modifier, bypassAuth: bypassAuth, extraValidator: extraValidator)
-    }
-
+    @discardableResult
     func perform() async throws -> Response<Data> {
         try await apiClient.perform(modifier: modifier, bypassAuth: bypassAuth, extraValidator: extraValidator).response
     }
